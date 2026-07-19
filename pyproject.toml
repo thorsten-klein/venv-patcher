@@ -1,0 +1,86 @@
+[build-system]
+requires = ["setuptools>=61", "setuptools-scm<7", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "venv-patcher"
+dynamic = ["version"]
+description = "Apply and track patches to packages installed in a Python virtual environment"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.9"
+dependencies = [
+    "PyYAML>=6.0",
+]
+authors = [
+    {name = "Thorsten Klein", email = "kleinkastel@googlemail.com"}
+]
+keywords = ["patch", "venv", "virtualenv", "site-packages", "pip"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Topic :: Software Development :: Build Tools",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+]
+
+[project.scripts]
+venv-patcher = "venv_patcher.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/thorsten-klein/venv-patcher"
+Documentation = "https://github.com/thorsten-klein/venv-patcher#readme"
+Repository = "https://github.com/thorsten-klein/venv-patcher"
+Issues = "https://github.com/thorsten-klein/venv-patcher/issues"
+
+[dependency-groups]
+lint = [
+    "ruff~=0.13",
+]
+test = [
+    "coverage>=7.10",
+    "pytest>=8.4,<10.0",
+    "pytest-xdist>=3.0.0",
+    "pytest-cov>=7.0",
+]
+dev = [
+    "poethepoet~=0.37",
+    {include-group = "lint"},
+    {include-group = "test"},
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+
+[tool.setuptools]
+packages = ["venv_patcher"]
+
+[tool.setuptools_scm]
+fallback_version = "0.1.0"
+
+[tool.ruff]
+line-length = 120
+indent-width = 4
+
+[tool.ruff.format]
+quote-style = "preserve"
+line-ending = "lf"
+preview = true
+
+[tool.poe.tasks]
+all = ["lint", "format", "test"]
+format = "ruff format ."
+lint = "ruff check ."
+test = {cmd = "pytest -v -n=auto -W error --cov-config=pyproject.toml --cov=venv_patcher --junitxml=junit.xml -o junit_family=legacy --cov-report=term --cov-report=html --cov-report=xml", env = {PYTHONIOENCODING = "utf-8"}}
+
+clean = "rm -rf dist/ build/ *.egg-info venv_patcher.egg-info"
+build = ["clean", {cmd = "uv build"}]
+publish-test = {cmd = "uv publish --publish-url https://test.pypi.org/legacy/"}
+publish = "uv publish"

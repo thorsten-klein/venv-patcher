@@ -1,0 +1,15 @@
+__pycache__
+.venv/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+*.whl
+*.tar.gz
+junit.xml
+coverage.xml
