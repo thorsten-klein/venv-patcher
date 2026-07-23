@@ -83,6 +83,7 @@ times to only reset specific packages.
 ## YAML format
 
 ```yaml
+version: 1                          # required, currently must be 1
 patches:
   - path: patches/0001-fix.patch    # relative to this yaml file, or absolute
     package: requests               # importable package name

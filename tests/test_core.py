@@ -184,16 +184,30 @@ def test_reset_package_removes_untracked_files(make_package):
 
 def test_load_patch_entries_requires_package_and_path(tmp_path):
     yaml_path = tmp_path / "bad.yml"
-    yaml_path.write_text(yaml.safe_dump({"patches": [{"path": "x.patch"}]}))
+    yaml_path.write_text(yaml.safe_dump({"version": 1, "patches": [{"path": "x.patch"}]}))
     with pytest.raises(PyPatcherError, match="package"):
         load_patch_entries(yaml_path)
 
 
 def test_load_patch_entries_parses_valid_file(tmp_path):
     yaml_path = tmp_path / "good.yml"
-    yaml_path.write_text(yaml.safe_dump({"patches": [{"path": "x.patch", "package": "foo"}]}))
+    yaml_path.write_text(yaml.safe_dump({"version": 1, "patches": [{"path": "x.patch", "package": "foo"}]}))
     entries = load_patch_entries(yaml_path)
     assert entries == [{"path": "x.patch", "package": "foo"}]
+
+
+def test_load_patch_entries_requires_version(tmp_path):
+    yaml_path = tmp_path / "no_version.yml"
+    yaml_path.write_text(yaml.safe_dump({"patches": [{"path": "x.patch", "package": "foo"}]}))
+    with pytest.raises(PyPatcherError, match="version"):
+        load_patch_entries(yaml_path)
+
+
+def test_load_patch_entries_rejects_unsupported_version(tmp_path):
+    yaml_path = tmp_path / "bad_version.yml"
+    yaml_path.write_text(yaml.safe_dump({"version": 2, "patches": [{"path": "x.patch", "package": "foo"}]}))
+    with pytest.raises(PyPatcherError, match="unsupported version"):
+        load_patch_entries(yaml_path)
 
 
 def test_resolve_package_dir_raises_for_module_without_path_or_file(fake_venv):
