@@ -11,7 +11,7 @@ from .conftest import make_plain_diff
 
 def _write_yaml(tmp_path, entries, name="patches.yml"):
     yaml_path = tmp_path / name
-    yaml_path.write_text(yaml.safe_dump({"patches": entries}))
+    yaml_path.write_text(yaml.safe_dump({"version": 1, "patches": entries}))
     return yaml_path
 
 
@@ -354,7 +354,7 @@ def test_apply_skip_missing_continues_past_missing_packages(fake_venv, make_pack
 
 def test_apply_malformed_yaml_reports_error(fake_venv, tmp_path, capsys):
     yaml_path = tmp_path / "bad.yml"
-    yaml_path.write_text(yaml.safe_dump({"patches": [{"path": "x.patch"}]}))
+    yaml_path.write_text(yaml.safe_dump({"version": 1, "patches": [{"path": "x.patch"}]}))
 
     rc = cli.main(["apply", "-f", str(yaml_path)])
     assert rc == 1
@@ -376,6 +376,26 @@ def test_apply_records_failure_when_git_init_fails(fake_venv, make_package, tmp_
     entry = manifest["packages"]["dummypkg"]["patches"][0]
     assert entry["status"] == "failed"
     assert "could not initialize git tracking" in entry["error"]
+
+
+def test_reset_skips_package_with_location_but_no_initial_commit(
+    fake_venv, make_package, tmp_path, fail_git_subcommand, capsys
+):
+    # A package whose git init failed has its location recorded but never
+    # gets an initial_commit; reset must skip it rather than crash.
+    make_package("dummypkg", "VALUE = 1\n")
+    patch_file = tmp_path / "bump.patch"
+    patch_file.write_text(make_plain_diff("VALUE = 1", "VALUE = 2"))
+    yaml_path = _write_yaml(tmp_path, [{"path": "bump.patch", "package": "dummypkg"}])
+
+    fail_git_subcommand("init", "init boom")
+    cli.main(["apply", "-f", str(yaml_path)])
+
+    capsys.readouterr()
+    rc = cli.main(["reset"])
+    out = capsys.readouterr().out
+    assert rc == 0
+    assert "dummypkg" not in out
 
 
 def test_apply_records_failure_when_patch_content_is_invalid(fake_venv, make_package, tmp_path):

@@ -297,8 +297,10 @@ def _reset_packages(manifest: dict, package_filter: set[str] | None) -> int:
             continue
 
         location = record.get("location")
+        if not location:
+            continue
         initial_commit = record.get("initial_commit")
-        if not location or not initial_commit:
+        if not initial_commit:
             continue
 
         package_dir = Path(location)

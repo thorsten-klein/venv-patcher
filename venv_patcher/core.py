@@ -20,6 +20,11 @@ FALLBACK_DATE = "1970-01-01T00:00:00+00:00"
 
 DEFAULT_APPLY_COMMAND = "git am"
 
+# The only yaml schema version venv-patcher currently understands. The yaml's
+# top-level "version" field is mandatory so future schema changes can be
+# introduced without silently misinterpreting older/newer files.
+SUPPORTED_VERSION = 1
+
 
 class PyPatcherError(Exception):
     """Raised for expected, user-facing failures."""
@@ -195,6 +200,11 @@ def load_patch_entries(yaml_path: Path) -> list[dict]:
 
     with open(yaml_path) as f:
         data = yaml.safe_load(f) or {}
+
+    if "version" not in data:
+        raise PyPatcherError(f"{yaml_path}: missing required top-level field: version")
+    if data["version"] != SUPPORTED_VERSION:
+        raise PyPatcherError(f"{yaml_path}: unsupported version {data['version']!r} (expected {SUPPORTED_VERSION})")
 
     patches = data.get("patches") or []
     for i, entry in enumerate(patches):
