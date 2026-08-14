@@ -20,7 +20,7 @@ def fake_venv(tmp_path, monkeypatch):
     monkeypatch.setattr(core.sys, "base_prefix", str(tmp_path / "base"))
 
     monkeypatch.syspath_prepend(str(site_packages))
-    yield site_packages
+    return site_packages
 
 
 def _git(args, cwd):
@@ -45,13 +45,6 @@ def make_package(fake_venv):
 
     for name in created:
         sys.modules.pop(name, None)
-
-
-@pytest.fixture(autouse=True)
-def _isolated_manifest(monkeypatch):
-    # Nothing to patch explicitly: manifest.get_manifest_path() derives from
-    # core.get_site_packages_dir(), which fake_venv already redirects.
-    yield
 
 
 @pytest.fixture

@@ -13,23 +13,27 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
       - name: Install uv
-        uses: astral-sh/setup-uv@v7
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
         with:
           enable-cache: true
       - name: Setup project
         run: uv sync --frozen --group lint
-      - run: uv run poe pre-commit
-      - run: uv run ruff format --check .
-      - run: uv run ruff check .
-      - run: uv run poe mypy
-      - run: uv run poe pyright
-      - run: uv run poe bandit
-      - run: uv run poe pip-audit
-      - run: uv run poe complexity
+      # Everything below reuses the environment `uv sync` just locked and
+      # built -- --no-sync skips uv run's own implicit sync (and any build
+      # it could otherwise trigger) rather than merely re-locking it.
+      - run: uv run --no-sync poe pre-commit
+      - run: uv run --no-sync ruff format --check .
+      - run: uv run --no-sync ruff check .
+      - run: uv run --no-sync poe mypy
+      - run: uv run --no-sync poe pyright
+      - run: uv run --no-sync poe bandit
+      - run: uv run --no-sync poe pip-audit
+      - run: uv run --no-sync poe complexity
 
   test:
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
         python-version: ['3.9', '3.10', '3.11', '3.12', '3.13']
@@ -37,8 +41,14 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          # Full history, not just this commit: SonarCloud's scan step below
+          # (gated to a single matrix leg, but checkout runs for all of them)
+          # uses it for blame/new-code-period data, which a shallow, single-
+          # commit checkout can't provide.
+          fetch-depth: 0
       - name: Install uv
-        uses: astral-sh/setup-uv@v7
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
         with:
           python-version: ${{ matrix.python-version }}
           enable-cache: true
@@ -51,14 +61,19 @@ jobs:
           git config --global init.defaultBranch "main";
           git config --global --add safe.directory "$PWD";
       - name: Run tests
-        run: uv run poe test
+        run: uv run --no-sync poe test
       - name: Upload coverage reports to Codecov
         if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.13'
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@0fb7174895f61a3b6b78fc075e0cd60383518dac # v5.5.5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
       - name: Upload test results to Codecov
         if: ${{ !cancelled() }}
-        uses: codecov/test-results-action@v1
+        uses: codecov/test-results-action@0fa95f0e1eeaafde2c782583b36b28ad0d8c77d3 # v1.2.1
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
+      - name: SonarCloud Scan
+        if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.13'
+        uses: SonarSource/sonarqube-scan-action@689fb39b34b9aa95ebc5f8f119343ddd51542402 # v4
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}

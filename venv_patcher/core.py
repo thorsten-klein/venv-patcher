@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import importlib
+import os
 import shlex
 import subprocess
 import sys
@@ -74,8 +75,31 @@ def resolve_package_dir(package_name: str) -> Path:
     return package_dir
 
 
+def _git_env(overrides: dict | None = None) -> dict:
+    """Build the environment for a git subprocess invocation.
+
+    Always disables git's own background maintenance/auto-gc. venv-patcher
+    runs git repeatedly, in quick succession, against directories it doesn't
+    own (a package's location inside someone else's site-packages), so git
+    deciding on its own to spawn a detached "git maintenance run" there is
+    pure downside: at best wasted work, at worst (observed on macOS CI) a
+    maintenance.lock file that intermittently races whatever reads that
+    .git dir next -- e.g. a caller's shutil.rmtree right after venv-patcher
+    is done with the package.
+    """
+    env = os.environ.copy()
+    env["GIT_CONFIG_COUNT"] = "2"
+    env["GIT_CONFIG_KEY_0"] = "gc.auto"
+    env["GIT_CONFIG_VALUE_0"] = "0"
+    env["GIT_CONFIG_KEY_1"] = "maintenance.auto"
+    env["GIT_CONFIG_VALUE_1"] = "false"
+    if overrides:
+        env.update(overrides)
+    return env
+
+
 def _run_git(args: list[str], cwd: Path, env: dict | None = None) -> subprocess.CompletedProcess:
-    return subprocess.run(["git", *args], cwd=cwd, capture_output=True, text=True, env=env)
+    return subprocess.run(["git", *args], cwd=cwd, capture_output=True, text=True, env=_git_env(env))
 
 
 _GITIGNORE_LINES = ["__pycache__/", "*.pyc", "*.pyo"]
@@ -128,16 +152,14 @@ def ensure_git_initialized(package_dir: Path) -> str:
 
 
 def _identity_env(name: str, email: str, date: str) -> dict:
-    import os
-
-    env = os.environ.copy()
-    env["GIT_AUTHOR_NAME"] = name
-    env["GIT_AUTHOR_EMAIL"] = email
-    env["GIT_AUTHOR_DATE"] = date
-    env["GIT_COMMITTER_NAME"] = name
-    env["GIT_COMMITTER_EMAIL"] = email
-    env["GIT_COMMITTER_DATE"] = date
-    return env
+    return {
+        "GIT_AUTHOR_NAME": name,
+        "GIT_AUTHOR_EMAIL": email,
+        "GIT_AUTHOR_DATE": date,
+        "GIT_COMMITTER_NAME": name,
+        "GIT_COMMITTER_EMAIL": email,
+        "GIT_COMMITTER_DATE": date,
+    }
 
 
 def apply_patch_file(
@@ -158,11 +180,12 @@ def apply_patch_file(
     takes effect there. If it only touches the working tree (e.g.
     "git apply"), venv-patcher creates the wrapping commit itself.
     """
-    env = _identity_env(
+    identity = _identity_env(
         author_name or FALLBACK_AUTHOR_NAME,
         author_email or FALLBACK_AUTHOR_EMAIL,
         date or FALLBACK_DATE,
     )
+    env = _git_env(identity)
 
     cmd = [*shlex.split(apply_command), str(patch_file)]
     proc = subprocess.run(cmd, cwd=package_dir, capture_output=True, text=True, env=env)
