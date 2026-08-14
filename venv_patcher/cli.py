@@ -467,7 +467,8 @@ def _print_package_status(package: str, record: dict) -> None:
         _print_patch_status(p)
 
 
-def cmd_list() -> int:
+def cmd_list() -> int:  # NOSONAR -- always 0 by design (listing never fails); kept int to
+    # match cmd_apply/cmd_reset's shared "return cmd_x(...)" dispatch in main().
     """Print every package with applied patches in the current environment."""
     manifest = load_manifest()
     packages = manifest.get("packages", {})
