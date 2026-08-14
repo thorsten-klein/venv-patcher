@@ -16,28 +16,32 @@ MANIFEST_FILENAME = ".venv-patcher-manifest.json"
 
 
 def get_manifest_path() -> Path:
+    """Return the path to the current environment's manifest file."""
     return get_site_packages_dir() / MANIFEST_FILENAME
 
 
 def load_manifest() -> dict:
+    """Load the current environment's manifest, or an empty one if none exists yet."""
     path = get_manifest_path()
     if not path.is_file():
         return {"packages": {}}
-    with open(path) as f:
+    with path.open() as f:
         data = json.load(f)
     data.setdefault("packages", {})
     return data
 
 
 def save_manifest(manifest: dict) -> None:
+    """Write manifest to disk atomically."""
     path = get_manifest_path()
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp_path = path.with_suffix(".json.tmp")
-    with open(tmp_path, "w") as f:
+    with tmp_path.open("w") as f:
         json.dump(manifest, f, indent=2, sort_keys=True)
         f.write("\n")
     tmp_path.replace(path)
 
 
 def get_package_record(manifest: dict, package: str) -> dict:
+    """Return package's record in manifest, creating an empty one if it doesn't exist yet."""
     return manifest["packages"].setdefault(package, {"location": None, "initial_commit": None, "patches": []})

@@ -31,10 +31,12 @@ class PyPatcherError(Exception):
 
 
 def is_in_venv() -> bool:
+    """Return whether the current interpreter is running inside a virtual environment."""
     return sys.prefix != sys.base_prefix
 
 
 def ensure_running_in_venv() -> None:
+    """Raise PyPatcherError unless the current interpreter is running inside a venv."""
     if not is_in_venv():
         raise PyPatcherError(
             "venv-patcher must be run from inside a virtual environment (none detected). "
@@ -44,6 +46,7 @@ def ensure_running_in_venv() -> None:
 
 
 def get_site_packages_dir() -> Path:
+    """Return the current environment's site-packages directory."""
     return Path(sysconfig.get_paths()["purelib"]).resolve()
 
 
@@ -78,18 +81,24 @@ def _run_git(args: list[str], cwd: Path, env: dict | None = None) -> subprocess.
 _GITIGNORE_LINES = ["__pycache__/", "*.pyc", "*.pyo"]
 
 
+def _read_existing_gitignore_lines(gitignore: Path) -> list[str]:
+    if not gitignore.is_file():
+        return []
+    return gitignore.read_text().splitlines()
+
+
 def _ensure_gitignore(package_dir: Path) -> None:
     # Importing the package (to resolve its directory) can make the
     # interpreter (re)write __pycache__/*.pyc with a fresh mtime/hash.
     # Those aren't part of the patch and would otherwise make the resulting
     # commit non-deterministic across runs, so keep them out of tracking.
     gitignore = package_dir / ".gitignore"
-    existing = gitignore.read_text().splitlines() if gitignore.is_file() else []
+    existing = _read_existing_gitignore_lines(gitignore)
     missing = [line for line in _GITIGNORE_LINES if line not in existing]
-    if missing:
-        with open(gitignore, "a") as f:
-            for line in missing:
-                f.write(line + "\n")
+    if not missing:
+        return
+    with gitignore.open("a") as f:
+        f.write("".join(line + "\n" for line in missing))
 
 
 def ensure_git_initialized(package_dir: Path) -> str:
@@ -155,35 +164,47 @@ def apply_patch_file(
         date or FALLBACK_DATE,
     )
 
-    cmd = shlex.split(apply_command) + [str(patch_file)]
+    cmd = [*shlex.split(apply_command), str(patch_file)]
     proc = subprocess.run(cmd, cwd=package_dir, capture_output=True, text=True, env=env)
     if proc.returncode != 0:
         return False, proc.stderr.strip()
 
-    status = _run_git(["status", "--porcelain"], cwd=package_dir)
-    if status.stdout.strip():
-        # apply_command left uncommitted changes (e.g. plain "git apply") -
-        # wrap them in a deterministic commit ourselves.
-        add_proc = _run_git(["add", "-A"], cwd=package_dir)
-        if add_proc.returncode != 0:
-            return False, add_proc.stderr.strip()
+    return _commit_pending_changes(package_dir, commit_message, env)
 
-        commit_proc = _run_git(["commit", "-q", "-m", commit_message], cwd=package_dir, env=env)
-        if commit_proc.returncode != 0:
-            return False, commit_proc.stderr.strip()
+
+def _commit_pending_changes(package_dir: Path, commit_message: str, env: dict) -> tuple[bool, str]:
+    """Wrap any uncommitted working tree changes in a deterministic commit.
+
+    apply_command may leave uncommitted changes (e.g. plain "git apply"), in
+    which case they still need wrapping in a commit ourselves; a command that
+    already commits its own result (e.g. "git am") leaves nothing to do here.
+    """
+    status = _run_git(["status", "--porcelain"], cwd=package_dir)
+    if not status.stdout.strip():
+        return True, ""
+
+    add_proc = _run_git(["add", "-A"], cwd=package_dir)
+    if add_proc.returncode != 0:
+        return False, add_proc.stderr.strip()
+
+    commit_proc = _run_git(["commit", "-q", "-m", commit_message], cwd=package_dir, env=env)
+    if commit_proc.returncode != 0:
+        return False, commit_proc.stderr.strip()
 
     return True, ""
 
 
 def sha256_of(path: Path) -> str:
+    """Return the hex-encoded sha256 digest of path's contents."""
     digest = hashlib.sha256()
-    with open(path, "rb") as f:
+    with path.open("rb") as f:
         for chunk in iter(lambda: f.read(65536), b""):
             digest.update(chunk)
     return digest.hexdigest()
 
 
 def reset_package(package_dir: Path, initial_commit: str) -> tuple[bool, str]:
+    """Hard-reset package_dir back to initial_commit, discarding any patches applied on top."""
     proc = _run_git(["reset", "-q", "--hard", initial_commit], cwd=package_dir)
     if proc.returncode != 0:
         return False, proc.stderr.strip()
@@ -195,20 +216,32 @@ def reset_package(package_dir: Path, initial_commit: str) -> tuple[bool, str]:
     return True, ""
 
 
-def load_patch_entries(yaml_path: Path) -> list[dict]:
-    import yaml
-
-    with open(yaml_path) as f:
-        data = yaml.safe_load(f) or {}
-
+def _check_version(data: dict, yaml_path: Path) -> None:
     if "version" not in data:
         raise PyPatcherError(f"{yaml_path}: missing required top-level field: version")
     if data["version"] != SUPPORTED_VERSION:
         raise PyPatcherError(f"{yaml_path}: unsupported version {data['version']!r} (expected {SUPPORTED_VERSION})")
 
-    patches = data.get("patches") or []
+
+def _check_patch_entry_fields(i: int, entry: dict, yaml_path: Path) -> None:
+    missing = [k for k in ("package", "path") if k not in entry]
+    if missing:
+        raise PyPatcherError(f"{yaml_path}: patch #{i + 1} is missing required field(s): {', '.join(missing)}")
+
+
+def _check_patch_entries(patches: list[dict], yaml_path: Path) -> None:
     for i, entry in enumerate(patches):
-        missing = [k for k in ("package", "path") if k not in entry]
-        if missing:
-            raise PyPatcherError(f"{yaml_path}: patch #{i + 1} is missing required field(s): {', '.join(missing)}")
+        _check_patch_entry_fields(i, entry, yaml_path)
+
+
+def load_patch_entries(yaml_path: Path) -> list[dict]:
+    """Load and validate the patch entries described by yaml_path."""
+    import yaml
+
+    with yaml_path.open() as f:
+        data = yaml.safe_load(f) or {}
+
+    _check_version(data, yaml_path)
+    patches = data.get("patches") or []
+    _check_patch_entries(patches, yaml_path)
     return patches
