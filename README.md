@@ -100,6 +100,6 @@ See [`example.yml`](example.yml) for a full annotated example.
 ## Development
 
 ```
-uv sync
-uv run poe all      # lint, format, test
+uv sync --group dev
+uv run poe all      # pre-commit, lint, format, mypy, pyright, bandit, pip-audit, complexity, test
 ```

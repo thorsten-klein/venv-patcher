@@ -76,6 +76,21 @@ def test_ensure_git_initialized_creates_commit_and_ignores_pycache(make_package)
     assert _git_log(pkg_dir) == [initial_commit]
 
 
+def test_ensure_git_initialized_reuses_existing_gitignore_without_duplicating_it(make_package):
+    pkg_dir = make_package("dummypkg")
+
+    ensure_git_initialized(pkg_dir)
+    gitignore_after_first = (pkg_dir / ".gitignore").read_text()
+    assert gitignore_after_first.splitlines() == ["__pycache__/", "*.pyc", "*.pyo"]
+
+    # Re-running against an already-tracked package dir must read the
+    # existing .gitignore rather than assume it's missing, and leave it
+    # untouched once every required line is already present.
+    ensure_git_initialized(pkg_dir)
+    gitignore_after_second = (pkg_dir / ".gitignore").read_text()
+    assert gitignore_after_second == gitignore_after_first
+
+
 def test_ensure_git_initialized_is_deterministic_across_independent_repos(make_package, tmp_path):
     pkg_dir_a = make_package("pkg_a", "VALUE = 1\n")
     other_site_packages = tmp_path / "other-site-packages"
