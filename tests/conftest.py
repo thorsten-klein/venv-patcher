@@ -67,6 +67,46 @@ def fail_git_subcommand(monkeypatch):
     return _apply
 
 
+def _toml_scalar(value: object) -> str:
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, int):
+        return str(value)
+    if isinstance(value, str):
+        escaped = value.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n")
+        return f'"{escaped}"'
+    raise TypeError(f"unsupported TOML value: {value!r}")
+
+
+def _toml_table_lines(table_name: str, entry: dict) -> list[str]:
+    lines = ["", f"[[{table_name}]]"]
+    lines.extend(f"{key} = {_toml_scalar(value)}" for key, value in entry.items())
+    return lines
+
+
+def _toml_lines_for(key: str, value: object) -> list[str]:
+    if not isinstance(value, list):
+        return [f"{key} = {_toml_scalar(value)}"]
+    lines = []
+    for entry in value:
+        lines.extend(_toml_table_lines(key, entry))
+    return lines
+
+
+def dump_toml(data: dict) -> str:
+    """Serialize a patches-manifest dict as TOML text.
+
+    Handles exactly the shapes venv-patcher's tests need: top-level scalars
+    (e.g. "version") and a top-level "patches" list of flat dicts, written
+    out as [[patches]] array-of-tables blocks -- a minimal, hand-rolled
+    stand-in for the tomllib.load side, since tomllib is read-only.
+    """
+    lines = []
+    for key, value in data.items():
+        lines.extend(_toml_lines_for(key, value))
+    return "\n".join(lines) + "\n"
+
+
 def make_plain_diff(old_line: str, new_line: str) -> str:
     return f"--- a/__init__.py\n+++ b/__init__.py\n@@ -1 +1 @@\n-{old_line}\n+{new_line}\n"
 

@@ -8,10 +8,8 @@ dynamic = ["version"]
 description = "Apply and track patches to packages installed in a Python virtual environment"
 readme = "README.md"
 license = {text = "MIT"}
-requires-python = ">=3.9"
-dependencies = [
-    "PyYAML>=6.0",
-]
+requires-python = ">=3.11"
+dependencies = []
 authors = [
     {name = "Thorsten Klein", email = "kleinkastel@googlemail.com"}
 ]
@@ -21,8 +19,6 @@ classifiers = [
     "Intended Audience :: Developers",
     "Topic :: Software Development :: Build Tools",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.9",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
@@ -46,7 +42,6 @@ lint = [
     "pre-commit>=4.3.0",
     "pyright~=1.1",
     "ruff~=0.13",
-    "types-pyyaml>=6.0.12.20250915",
 ]
 test = [
     "coverage>=7.10",
@@ -107,11 +102,11 @@ color = "auto"
 sort = "asc"
 
 [tool.mypy]
-python_version = "3.9"
+python_version = "3.11"
 files = ["venv_patcher"]
 
 [tool.pyright]
-pythonVersion = "3.9"
+pythonVersion = "3.11"
 include = ["venv_patcher"]
 
 [tool.bandit]

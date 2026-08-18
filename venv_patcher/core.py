@@ -9,9 +9,10 @@ import shlex
 import subprocess
 import sys
 import sysconfig
+import tomllib
 from pathlib import Path
 
-# Fixed fallback identity/date used when a patch entry in the yaml does not
+# Fixed fallback identity/date used when a patch entry in the toml does not
 # specify author/email/date. Using a fixed value (instead of "now") keeps
 # re-applying the same patch to the same environment reproducible: the
 # resulting commit hash only changes if the patch content itself changes.
@@ -21,7 +22,7 @@ FALLBACK_DATE = "1970-01-01T00:00:00+00:00"
 
 DEFAULT_APPLY_COMMAND = "git am"
 
-# The only yaml schema version venv-patcher currently understands. The yaml's
+# The only toml schema version venv-patcher currently understands. The toml's
 # top-level "version" field is mandatory so future schema changes can be
 # introduced without silently misinterpreting older/newer files.
 SUPPORTED_VERSION = 1
@@ -173,7 +174,7 @@ def apply_patch_file(
 ) -> tuple[bool, str]:
     """Apply a patch, guaranteeing the result lands in a deterministic commit.
 
-    The author/committer identity and date are pinned (from the yaml, or a
+    The author/committer identity and date are pinned (from the toml, or a
     fixed fallback) so re-applying the same patch to the same starting state
     always produces the same commit hash. If ``apply_command`` already
     creates a commit itself (e.g. "git am"), the pinned committer identity
@@ -239,32 +240,30 @@ def reset_package(package_dir: Path, initial_commit: str) -> tuple[bool, str]:
     return True, ""
 
 
-def _check_version(data: dict, yaml_path: Path) -> None:
+def _check_version(data: dict, toml_path: Path) -> None:
     if "version" not in data:
-        raise PyPatcherError(f"{yaml_path}: missing required top-level field: version")
+        raise PyPatcherError(f"{toml_path}: missing required top-level field: version")
     if data["version"] != SUPPORTED_VERSION:
-        raise PyPatcherError(f"{yaml_path}: unsupported version {data['version']!r} (expected {SUPPORTED_VERSION})")
+        raise PyPatcherError(f"{toml_path}: unsupported version {data['version']!r} (expected {SUPPORTED_VERSION})")
 
 
-def _check_patch_entry_fields(i: int, entry: dict, yaml_path: Path) -> None:
+def _check_patch_entry_fields(i: int, entry: dict, toml_path: Path) -> None:
     missing = [k for k in ("package", "path") if k not in entry]
     if missing:
-        raise PyPatcherError(f"{yaml_path}: patch #{i + 1} is missing required field(s): {', '.join(missing)}")
+        raise PyPatcherError(f"{toml_path}: patch #{i + 1} is missing required field(s): {', '.join(missing)}")
 
 
-def _check_patch_entries(patches: list[dict], yaml_path: Path) -> None:
+def _check_patch_entries(patches: list[dict], toml_path: Path) -> None:
     for i, entry in enumerate(patches):
-        _check_patch_entry_fields(i, entry, yaml_path)
+        _check_patch_entry_fields(i, entry, toml_path)
 
 
-def load_patch_entries(yaml_path: Path) -> list[dict]:
-    """Load and validate the patch entries described by yaml_path."""
-    import yaml
+def load_patch_entries(toml_path: Path) -> list[dict]:
+    """Load and validate the patch entries described by toml_path."""
+    with toml_path.open("rb") as f:
+        data = tomllib.load(f)
 
-    with yaml_path.open() as f:
-        data = yaml.safe_load(f) or {}
-
-    _check_version(data, yaml_path)
+    _check_version(data, toml_path)
     patches = data.get("patches") or []
-    _check_patch_entries(patches, yaml_path)
+    _check_patch_entries(patches, toml_path)
     return patches
