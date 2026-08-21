@@ -42,7 +42,7 @@ repos:
 # Configuration
 #
 # No default_language_version.python pin here (unlike the rest of this repo's
-# floor-version-3.9 stance): these hooks don't run any of venv-patcher's own
+# floor-version-3.11 stance): these hooks don't run any of venv-patcher's own
 # code, just generic file checks, and pinning to python3.9 specifically broke
 # CI -- that interpreter isn't guaranteed to be on PATH as `python3.9` on a
 # runner that never installed it, unlike the versions the test matrix
