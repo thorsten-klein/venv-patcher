@@ -369,11 +369,23 @@ def _record_apply_result(entry: dict, ok: bool, actual_sha: str, stderr: str) ->
         entry["error"] = stderr
 
 
-def _report_apply_result(ok: bool, rel_path: str, package: str, stderr: str) -> None:
+def _report_apply_result(
+    ok: bool, rel_path: str, package: str, package_dir: Path, apply_command: str, stderr: str
+) -> None:
     if ok:
         print(f"applied {rel_path} to {package}")
-    else:
-        print(f"error: failed to apply {rel_path} to {package}: {stderr}", file=sys.stderr)
+        return
+
+    indented_error = "\n".join(f"    {line}" for line in stderr.splitlines()) or "    (no output)"
+    print(
+        "error: failed to apply patch\n"
+        f"  command:     {apply_command}\n"
+        f"  package:     {package}\n"
+        f"  patch:       {rel_path}\n"
+        f"  package-dir: {package_dir}\n"
+        f"  stderr:\n{indented_error}",
+        file=sys.stderr,
+    )
 
 
 def _finalize_apply(
@@ -398,7 +410,7 @@ def _finalize_apply(
     _record_apply_result(entry, ok, actual_sha, stderr)
     pkg_record["patches"].append(entry)
     save_manifest(manifest)
-    _report_apply_result(ok, rel_path, package, stderr)
+    _report_apply_result(ok, rel_path, package, package_dir, apply_command, stderr)
 
     return ok
 
