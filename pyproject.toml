@@ -15,7 +15,28 @@ dependencies = [
 authors = [
     {name = "Thorsten Klein", email = "kleinkastel@googlemail.com"}
 ]
-keywords = ["patch", "venv", "virtualenv", "site-packages", "pip"]
+keywords = [
+    "python",
+    "venv",
+    "virtualenv",
+    "virtual-environment",
+    "patch",
+    "patching",
+    "patch-management",
+    "site-packages",
+    "pip",
+    "python-packages",
+    "dependency-management",
+    "git",
+    "git-am",
+    "git-apply",
+    "monkey-patching",
+    "hotfix",
+    "reproducible-builds",
+    "cli",
+    "developer-tools",
+    "uv",
+]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
