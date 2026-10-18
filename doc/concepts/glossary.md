@@ -29,8 +29,8 @@ The words venv-patcher uses, in short.
   You write it. See [The patches file](../configuration/patches-file.md).
 
 **entry**
-: One item in the `patches` list of a patches file. It names one patch and
-  one package.
+: One item in the `patches` list of a patches file. It names one package,
+  and usually one patch. Without a patch, it only sets up git.
 
 **apply command**
 : The command that applies a patch. `git am` by default. Set with

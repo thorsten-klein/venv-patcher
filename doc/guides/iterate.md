@@ -28,7 +28,9 @@ error: patches/requests/0001-fix.patch was already applied to requests but its c
 ## Edit in the package, then save the patch
 
 You can also change the files right in the package folder. It is a git
-repository, so you can commit there and save the patch:
+repository, so you can commit there and save the patch. For a package with
+no patch yet, list it without `path` first. See
+[Write a patch](write-a-patch.md#in-the-package-folder).
 
 ```bash
 cd "$(python -c 'import requests, pathlib; print(pathlib.Path(requests.__file__).parent)')"

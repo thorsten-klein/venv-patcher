@@ -644,3 +644,62 @@ def test_apply_force_records_failure_when_reset_fails(write_patches, fake_venv, 
     manifest = load_manifest()
     # the failed reset shouldn't have wiped the previously recorded patch
     assert len(manifest["packages"]["dummypkg"]["patches"]) == 1
+
+
+def test_an_entry_without_path_only_sets_up_git(write_patches, fake_venv, make_package, tmp_path, capsys):
+    pkg_dir = make_package("dummypkg", "VALUE = 1\n")
+    patches_path = _write_patches(write_patches, [{"package": "dummypkg"}])
+
+    assert cli.main(["apply", "-f", str(patches_path)]) == 0
+    assert "initialized git tracking for dummypkg" in capsys.readouterr().out
+    assert (pkg_dir / ".git").is_dir()
+    assert (pkg_dir / "__init__.py").read_text() == "VALUE = 1\n"
+    record = load_manifest()["packages"]["dummypkg"]
+    assert record["initial_commit"]
+    assert record["patches"] == []
+
+    # a second run has nothing to do
+    assert cli.main(["apply", "-f", str(patches_path)]) == 0
+    assert capsys.readouterr().out == ""
+    assert load_manifest()["packages"]["dummypkg"]["initial_commit"] == record["initial_commit"]
+
+
+def test_an_entry_without_path_then_a_patch(write_patches, fake_venv, make_package, tmp_path):
+    pkg_dir = make_package("dummypkg", "VALUE = 1\n")
+    patch_file = tmp_path / "bump.patch"
+    patch_file.write_text(make_plain_diff("VALUE = 1", "VALUE = 2"))
+    patches_path = _write_patches(
+        write_patches,
+        [{"package": "dummypkg"}, {"path": "bump.patch", "package": "dummypkg", "apply-command": "git apply"}],
+    )
+
+    assert cli.main(["apply", "-f", str(patches_path)]) == 0
+    assert (pkg_dir / "__init__.py").read_text() == "VALUE = 2\n"
+    assert [p["status"] for p in load_manifest()["packages"]["dummypkg"]["patches"]] == ["applied"]
+
+
+def test_an_entry_without_path_for_a_missing_package(write_patches, fake_venv, make_package, tmp_path, capsys):
+    pkg_dir = make_package("dummypkg", "VALUE = 1\n")
+    patches_path = _write_patches(write_patches, [{"package": "does_not_exist_pkg"}, {"package": "dummypkg"}])
+
+    # stops at the first missing package by default
+    assert cli.main(["apply", "-f", str(patches_path)]) == 1
+    assert "is not importable" in capsys.readouterr().err
+    assert not (pkg_dir / ".git").exists()
+    assert "does_not_exist_pkg" not in load_manifest()["packages"]
+
+    assert cli.main(["apply", "--skip-missing", "-f", str(patches_path)]) == 1
+    assert (pkg_dir / ".git").is_dir()
+
+
+def test_an_entry_without_path_reports_a_failed_git_init(
+    write_patches, fake_venv, make_package, tmp_path, fail_git_subcommand, capsys
+):
+    make_package("dummypkg", "VALUE = 1\n")
+    patches_path = _write_patches(write_patches, [{"package": "dummypkg"}])
+    fail_git_subcommand("init", "init boom")
+
+    assert cli.main(["apply", "-f", str(patches_path)]) == 1
+    assert "could not initialize git tracking for dummypkg: " in capsys.readouterr().err
+    # nothing worked, so nothing is recorded
+    assert "dummypkg" not in load_manifest()["packages"]

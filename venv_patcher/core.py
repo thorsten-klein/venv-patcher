@@ -271,9 +271,9 @@ def _check_version(data: dict, patches_path: Path) -> None:
 
 
 def _check_patch_entry_fields(i: int, entry: dict, patches_path: Path) -> None:
-    missing = [k for k in ("package", "path") if k not in entry]
-    if missing:
-        raise PyPatcherError(f"{patches_path}: patch #{i + 1} is missing required field(s): {', '.join(missing)}")
+    # "path" may be left out: then the package only gets git tracking
+    if "package" not in entry:
+        raise PyPatcherError(f"{patches_path}: patch #{i + 1} is missing required field(s): package")
 
 
 def _check_patch_entries(patches: list[dict], patches_path: Path) -> None:
