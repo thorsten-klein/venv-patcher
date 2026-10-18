@@ -1,3 +1,4 @@
+import datetime
 import subprocess
 import sys
 
@@ -9,6 +10,7 @@ from venv_patcher.core import (
     apply_patch_file,
     ensure_git_initialized,
     ensure_running_in_venv,
+    git_date,
     is_in_venv,
     load_patch_entries,
     reset_package,
@@ -354,3 +356,16 @@ def test_reset_package_reports_git_clean_failure(make_package, fail_git_subcomma
     ok, err = reset_package(pkg_dir, initial_commit)
     assert ok is False
     assert "clean boom" in err
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        (datetime.date(2020, 4, 20), "2020-04-20T00:00:00+00:00"),
+        ("2020-04-20", "2020-04-20T00:00:00+00:00"),
+        ("2020-04-20T10:30:00+02:00", "2020-04-20T10:30:00+02:00"),
+        (datetime.datetime(2020, 4, 20, 10, 30, tzinfo=datetime.timezone.utc), "2020-04-20 10:30:00+00:00"),
+    ],
+)
+def test_git_date_adds_midnight_utc_to_a_date_alone(value, expected):
+    assert git_date(value) == expected

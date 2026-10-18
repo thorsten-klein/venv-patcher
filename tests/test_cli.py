@@ -138,6 +138,23 @@ def test_apply_is_reapplyable_producing_same_commit(write_patches, fake_venv, ma
     assert first == second
 
 
+def test_apply_accepts_a_date_without_a_time(fake_venv, make_package, tmp_path):
+    pkg_dir = make_package("dummypkg", "VALUE = 1\n")
+    patch_file = tmp_path / "bump.patch"
+    patch_file.write_text(make_plain_diff("VALUE = 1", "VALUE = 2"))
+    # unquoted, so YAML reads it as a datetime.date
+    yaml_path = tmp_path / "patches.yml"
+    yaml_path.write_text(
+        "version: 1\npatches:\n  - {path: bump.patch, package: dummypkg, apply-command: git apply, date: 2020-04-20}\n"
+    )
+
+    assert cli.main(["apply", "-f", str(yaml_path)]) == 0
+    dates = subprocess.run(
+        ["git", "log", "-1", "--format=%ad %cd", "--date=iso"], cwd=pkg_dir, check=True, capture_output=True, text=True
+    ).stdout.strip()
+    assert dates == "2020-04-20 00:00:00 +0000 2020-04-20 00:00:00 +0000"
+
+
 def test_main_refuses_to_run_outside_venv(monkeypatch, capsys):
     monkeypatch.setattr(cli.sys, "prefix", "/same")
     monkeypatch.setattr("venv_patcher.core.sys.base_prefix", "/same")
