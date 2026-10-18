@@ -10,9 +10,10 @@ venv-patcher reset [-p <package> ...]
 
 For each package in the manifest:
 
-1. `git reset --hard` to its initial commit.
-2. `git clean -fd`, to remove files that patches added.
-3. Empty its patch list in the manifest.
+1. End a `git am` that stopped half way, if there is one.
+2. `git reset --hard` to its initial commit.
+3. `git clean -fd`, to remove files that patches added.
+4. Empty its patch list in the manifest.
 
 The package is then as it was installed.
 
