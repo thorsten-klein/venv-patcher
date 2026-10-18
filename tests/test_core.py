@@ -336,6 +336,8 @@ def test_apply_patch_file_reports_git_commit_failure(make_package, tmp_path, fai
     ok, err = apply_patch_file(pkg_dir, patch_file, "git apply", None, None, None, "msg")
     assert ok is False
     assert "commit boom" in err
+    # the applied but uncommitted change is undone again
+    assert (pkg_dir / "__init__.py").read_text() == "VALUE = 1\n"
 
 
 def test_reset_package_reports_failure_for_invalid_commit(make_package):
@@ -369,3 +371,49 @@ def test_reset_package_reports_git_clean_failure(make_package, fail_git_subcomma
 )
 def test_git_date_adds_midnight_utc_to_a_date_alone(value, expected):
     assert git_date(value) == expected
+
+
+def test_a_failed_git_am_leaves_the_package_as_it_was(make_package, tmp_path):
+    pkg_dir = make_package("dummypkg", "VALUE = 1\n")
+    good_patch = make_am_patch(tmp_path, pkg_dir, "VALUE = 1", "VALUE = 2", "Jane", "jane@example.com")
+    bad_patch = tmp_path / "bad.patch"
+    bad_patch.write_text(good_patch.read_text().replace("-VALUE = 1", "-VALUE = 7"))
+    initial_commit = ensure_git_initialized(pkg_dir)
+
+    ok, _ = apply_patch_file(pkg_dir, bad_patch, "git am", None, None, None, "msg")
+    assert ok is False
+    assert not (pkg_dir / ".git" / "rebase-apply").exists()
+    assert _git_log(pkg_dir) == [initial_commit]
+
+    # before the fix, git am refused to start while the old session was open
+    ok, err = apply_patch_file(pkg_dir, good_patch, "git am", None, None, None, "msg")
+    assert ok, err
+    assert (pkg_dir / "__init__.py").read_text() == "VALUE = 2\n"
+
+
+def test_a_failed_command_leaves_no_changes_behind(make_package, tmp_path):
+    pkg_dir = make_package("dummypkg", "VALUE = 1\n")
+    initial_commit = ensure_git_initialized(pkg_dir)
+    patch_file = tmp_path / "any.patch"
+    patch_file.write_text("")
+
+    # changes some files, then fails; the patch path ends up as $0
+    command = "sh -c 'echo X = 1 > extra.py; echo VALUE = 9 > __init__.py; exit 1'"
+    ok, _ = apply_patch_file(pkg_dir, patch_file, command, None, None, None, "msg")
+    assert ok is False
+    assert not (pkg_dir / "extra.py").exists()
+    assert (pkg_dir / "__init__.py").read_text() == "VALUE = 1\n"
+    assert _git_log(pkg_dir) == [initial_commit]
+
+
+def test_reset_package_ends_a_stuck_git_am(make_package, tmp_path):
+    pkg_dir = make_package("dummypkg", "VALUE = 1\n")
+    bad_patch = make_am_patch(tmp_path, pkg_dir, "VALUE = 7", "VALUE = 8", "Jane", "jane@example.com")
+    initial_commit = ensure_git_initialized(pkg_dir)
+    # a package left stuck by an older venv-patcher
+    subprocess.run(["git", "am", str(bad_patch)], cwd=pkg_dir, capture_output=True, check=False)
+    assert (pkg_dir / ".git" / "rebase-apply").is_dir()
+
+    ok, err = reset_package(pkg_dir, initial_commit)
+    assert ok, err
+    assert not (pkg_dir / ".git" / "rebase-apply").exists()

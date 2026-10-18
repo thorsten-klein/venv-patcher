@@ -59,6 +59,9 @@ For each entry of the patches file, in order:
    folder.
 7. **Commit it.** If the apply command left changes (like `git apply`
    does), commit them. `git am` already made its own commit.
+
+   If step 6 or 7 fails, the package goes back to its last commit. So a
+   failed patch leaves nothing behind.
 8. **Record it** in the manifest: `applied` with the hash, or `failed` with
    the error.
 
@@ -78,7 +81,7 @@ flowchart TD
     E --> G{patch file ok?<br/>exists, sha256sum}
     G -- no --> F3[fail]
     G -- yes --> H[run apply command]
-    H -- fails --> F4[fail]
+    H -- fails --> F4[fail; back to last commit]
     H -- ok --> I[commit what is left]
     I --> R[record 'applied']
 ```
@@ -111,9 +114,10 @@ patch commit.
 
 For each package in the manifest (or only those given with `-p`):
 
-1. `git reset --hard <initial commit>`
-2. `git clean -fd`, to remove files a patch added.
-3. Empty the patch list of the package in the manifest.
+1. End a `git am` that stopped half way, if there is one.
+2. `git reset --hard <initial commit>`
+3. `git clean -fd`, to remove files a patch added.
+4. Empty the patch list of the package in the manifest.
 
 The git repository and the initial commit stay. The next `apply` builds on
 them again.

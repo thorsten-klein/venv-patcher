@@ -54,6 +54,12 @@ sequenceDiagram
                     venv-patcher->>Git: add -A
                     venv-patcher->>Git: commit -q -m <comments>
                 end
+                opt Apply or commit failed
+                    Note over venv-patcher: .git/rebase-apply there?
+                    venv-patcher->>Git: am --abort
+                    venv-patcher->>Git: reset -q --hard HEAD
+                    venv-patcher->>Git: clean -q -fd
+                end
                 venv-patcher->>Manifest: save applied or failed
             end
         end
@@ -96,6 +102,9 @@ sequenceDiagram
     venv-patcher->>Manifest: load
     loop For each package (filtered by -p)
         Note over venv-patcher: Skip if no folder or no initial commit<br/>Warn if the folder is gone
+        opt .git/rebase-apply there
+            venv-patcher->>Git: am --abort
+        end
         venv-patcher->>Git: reset -q --hard <initial commit>
         venv-patcher->>Git: clean -q -fd
         venv-patcher->>Manifest: empty patches, save

@@ -203,6 +203,8 @@ def apply_patch_file(
     creates a commit itself (e.g. "git am"), the pinned committer identity
     takes effect there. If it only touches the working tree (e.g.
     "git apply"), venv-patcher creates the wrapping commit itself.
+
+    If the patch fails, the package is put back to its last commit.
     """
     identity = _identity_env(
         author_name or FALLBACK_AUTHOR_NAME,
@@ -211,12 +213,33 @@ def apply_patch_file(
     )
     env = _git_env(identity)
 
+    ok, stderr = _run_apply_command(package_dir, patch_file, apply_command, env)
+    if ok:
+        ok, stderr = _commit_pending_changes(package_dir, commit_message, env)
+    if not ok:
+        _restore_last_commit(package_dir)
+    return ok, stderr
+
+
+def _run_apply_command(package_dir: Path, patch_file: Path, apply_command: str, env: dict) -> tuple[bool, str]:
     cmd = [*shlex.split(apply_command), str(patch_file)]
     proc = subprocess.run(cmd, cwd=package_dir, capture_output=True, text=True, env=env)
     if proc.returncode != 0:
         return False, proc.stderr.strip()
+    return True, ""
 
-    return _commit_pending_changes(package_dir, commit_message, env)
+
+def _abort_am(package_dir: Path) -> None:
+    """End a "git am" that stopped half way. Else every later "git am" there fails."""
+    if (package_dir / ".git" / "rebase-apply").is_dir():
+        _run_git(["am", "--abort"], cwd=package_dir)
+
+
+def _restore_last_commit(package_dir: Path) -> None:
+    """Undo what a failed patch left behind, so the package is as before."""
+    _abort_am(package_dir)
+    _run_git(["reset", "-q", "--hard", "HEAD"], cwd=package_dir)
+    _run_git(["clean", "-q", "-fd"], cwd=package_dir)
 
 
 def _commit_pending_changes(package_dir: Path, commit_message: str, env: dict) -> tuple[bool, str]:
@@ -252,6 +275,7 @@ def sha256_of(path: Path) -> str:
 
 def reset_package(package_dir: Path, initial_commit: str) -> tuple[bool, str]:
     """Hard-reset package_dir back to initial_commit, discarding any patches applied on top."""
+    _abort_am(package_dir)
     proc = _run_git(["reset", "-q", "--hard", initial_commit], cwd=package_dir)
     if proc.returncode != 0:
         return False, proc.stderr.strip()

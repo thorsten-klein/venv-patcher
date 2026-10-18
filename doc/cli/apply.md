@@ -97,13 +97,8 @@ See [Work on a patch](../guides/iterate.md).
   the next `-f` file.
 - A failed entry is still recorded in the manifest. `list` shows it as
   `[FAIL]`.
-- A failed `git am` leaves its session open in the package. Then every
-  later `git am` there fails with `previous rebase directory ... still
-  exists`. `reset` does not close it. Close it by hand:
-
-  ```bash
-  git -C <package folder> am --abort
-  ```
+- A failed patch changes nothing. The package is put back to its last
+  commit, and a stopped `git am` is ended.
 - Single `.py` files right in site-packages can not be patched. Only
   package folders.
 
