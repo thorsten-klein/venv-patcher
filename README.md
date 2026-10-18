@@ -6,6 +6,8 @@
 
 [![Run Tests](https://github.com/thorsten-klein/venv-patcher/actions/workflows/test.yml/badge.svg)](https://github.com/thorsten-klein/venv-patcher/actions/workflows/test.yml)
 [![Docs](https://github.com/thorsten-klein/venv-patcher/actions/workflows/docs.yml/badge.svg)](https://thorsten-klein.github.io/venv-patcher/)
+[![codecov](https://codecov.io/gh/thorsten-klein/venv-patcher/branch/main/graph/badge.svg)](https://codecov.io/gh/thorsten-klein/venv-patcher)
+[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=thorsten-klein_venv-patcher&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=thorsten-klein_venv-patcher)
 [![PyPI](https://img.shields.io/pypi/v/venv-patcher.svg)](https://pypi.org/project/venv-patcher/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
