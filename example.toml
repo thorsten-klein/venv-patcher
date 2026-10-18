@@ -17,6 +17,6 @@ sha256sum = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
 package = "requests"
 author = "Kermit D. Frog"
 email = "itsnoteasy@being.gr"
-date = 2020-04-20
+date = 2020-04-20T00:00:00+00:00
 apply-command = "git am"
 comments = "Songs about rainbows - why are there so many??\n"
