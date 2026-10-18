@@ -34,7 +34,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     sub = parser.add_subparsers(dest="command", required=True)
 
-    apply_p = sub.add_parser("apply", help="Apply patches described in one or more YAML files")
+    apply_p = sub.add_parser("apply", help="Apply patches described in one or more YAML or TOML files")
     apply_p.add_argument(
         "-f",
         "--file",
@@ -42,7 +42,8 @@ def build_parser() -> argparse.ArgumentParser:
         action="append",
         required=True,
         metavar="FILE",
-        help="YAML file describing patches to apply (may be given multiple times)",
+        help="YAML or TOML file describing patches to apply (may be given multiple times; "
+        "TOML needs Python 3.11 or newer)",
     )
     apply_p.add_argument(
         "-p",
@@ -143,17 +144,17 @@ def _apply_all_files(
     return exit_code
 
 
-def _resolve_yaml_file(file: str) -> Path | None:
-    yaml_path = Path(file).resolve()
-    if not yaml_path.is_file():
+def _resolve_patches_file(file: str) -> Path | None:
+    patches_path = Path(file).resolve()
+    if not patches_path.is_file():
         print(f"error: patch file not found: {file}", file=sys.stderr)
         return None
-    return yaml_path
+    return patches_path
 
 
-def _load_entries_or_none(yaml_path: Path) -> list[dict] | None:
+def _load_entries_or_none(patches_path: Path) -> list[dict] | None:
     try:
-        return load_patch_entries(yaml_path)
+        return load_patch_entries(patches_path)
     except PyPatcherError as e:
         print(f"error: {e}", file=sys.stderr)
         return None
@@ -167,14 +168,14 @@ def _iter_matching_entries(entries: list[dict], package_filter: set[str] | None)
 
 def _apply_matching_entries(
     manifest: dict,
-    yaml_path: Path,
+    patches_path: Path,
     entries: list[dict],
     package_filter: set[str] | None,
     skip_missing: bool,
 ) -> int:
     exit_code = 0
     for patch_info in _iter_matching_entries(entries, package_filter):
-        if not _apply_one(manifest, yaml_path, patch_info, skip_missing):
+        if not _apply_one(manifest, patches_path, patch_info, skip_missing):
             exit_code = 1
     return exit_code
 
@@ -191,20 +192,20 @@ def _apply_from_file(
     (or the file itself) failed. Lets _PackageNotFound propagate so cmd_apply
     can abort immediately, as required when skip_missing is False.
     """
-    yaml_path = _resolve_yaml_file(file)
-    if yaml_path is None:
+    patches_path = _resolve_patches_file(file)
+    if patches_path is None:
         return 1
 
-    entries = _load_entries_or_none(yaml_path)
+    entries = _load_entries_or_none(patches_path)
     if entries is None:
         return 1
 
-    return _apply_matching_entries(manifest, yaml_path, entries, package_filter, skip_missing)
+    return _apply_matching_entries(manifest, patches_path, entries, package_filter, skip_missing)
 
 
-def _make_patch_entry(yaml_path: Path, rel_path: str, patch_file: Path, apply_command: str) -> dict:
+def _make_patch_entry(patches_path: Path, rel_path: str, patch_file: Path, apply_command: str) -> dict:
     return {
-        "source_yaml": str(yaml_path),
+        "source_file": str(patches_path),
         "path": rel_path,
         "resolved_path": str(patch_file),
         "apply_command": apply_command,
@@ -354,10 +355,10 @@ def _verify_patch_sha(
     return actual_sha
 
 
-def _resolve_patch_file(yaml_path: Path, rel_path: str) -> Path:
+def _resolve_patch_file(patches_path: Path, rel_path: str) -> Path:
     patch_file = Path(rel_path)
     if not patch_file.is_absolute():
-        patch_file = yaml_path.parent / patch_file
+        patch_file = patches_path.parent / patch_file
     return patch_file.resolve()
 
 
@@ -417,7 +418,7 @@ def _finalize_apply(
 
 def _apply_one(
     manifest: dict,
-    yaml_path: Path,
+    patches_path: Path,
     patch_info: dict,
     skip_missing: bool = False,
 ) -> bool:
@@ -427,10 +428,10 @@ def _apply_one(
     apply_command = patch_info.get("apply-command", DEFAULT_APPLY_COMMAND)
     date = patch_info.get("date")
     date_str = str(date) if date is not None else None
-    patch_file = _resolve_patch_file(yaml_path, rel_path)
+    patch_file = _resolve_patch_file(patches_path, rel_path)
 
     pkg_record = get_package_record(manifest, package)
-    entry = _make_patch_entry(yaml_path, rel_path, patch_file, apply_command)
+    entry = _make_patch_entry(patches_path, rel_path, patch_file, apply_command)
 
     existing_entry = _find_existing_entry(pkg_record, patch_file)
     if existing_entry is not None:
@@ -462,7 +463,9 @@ def _apply_one(
 def _print_patch_status(p: dict) -> None:
     status = p.get("status", "unknown")
     marker = "OK" if status == "applied" else "FAIL"
-    print(f"  [{marker}] {p['path']}  (from {p['source_yaml']}, {p['applied_at']})")
+    # manifests written before TOML support call the field "source_yaml"
+    source = p.get("source_file") or p.get("source_yaml")
+    print(f"  [{marker}] {p['path']}  (from {source}, {p['applied_at']})")
     if status != "applied" and p.get("error"):
         print(f"        error: {p['error']}")
 

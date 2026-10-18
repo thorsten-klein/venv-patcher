@@ -16,7 +16,7 @@ from venv_patcher.core import (
     sha256_of,
 )
 
-from .conftest import make_am_patch, make_plain_diff
+from .conftest import dump_toml, make_am_patch, make_plain_diff, needs_tomllib, only_without_tomllib
 
 
 def _git_log(pkg_dir, fmt="%H"):
@@ -197,32 +197,65 @@ def test_reset_package_removes_untracked_files(make_package):
     assert (pkg_dir / "__init__.py").read_text() == "VALUE = 1\n"
 
 
-def test_load_patch_entries_requires_package_and_path(tmp_path):
-    yaml_path = tmp_path / "bad.yml"
-    yaml_path.write_text(yaml.safe_dump({"version": 1, "patches": [{"path": "x.patch"}]}))
+def test_load_patch_entries_requires_package_and_path(write_patches):
+    patches_path = write_patches({"version": 1, "patches": [{"path": "x.patch"}]})
     with pytest.raises(PyPatcherError, match="package"):
-        load_patch_entries(yaml_path)
+        load_patch_entries(patches_path)
 
 
-def test_load_patch_entries_parses_valid_file(tmp_path):
-    yaml_path = tmp_path / "good.yml"
-    yaml_path.write_text(yaml.safe_dump({"version": 1, "patches": [{"path": "x.patch", "package": "foo"}]}))
-    entries = load_patch_entries(yaml_path)
+def test_load_patch_entries_parses_valid_file(write_patches):
+    patches_path = write_patches({"version": 1, "patches": [{"path": "x.patch", "package": "foo"}]})
+    entries = load_patch_entries(patches_path)
     assert entries == [{"path": "x.patch", "package": "foo"}]
 
 
-def test_load_patch_entries_requires_version(tmp_path):
-    yaml_path = tmp_path / "no_version.yml"
-    yaml_path.write_text(yaml.safe_dump({"patches": [{"path": "x.patch", "package": "foo"}]}))
+def test_load_patch_entries_requires_version(write_patches):
+    patches_path = write_patches({"patches": [{"path": "x.patch", "package": "foo"}]})
     with pytest.raises(PyPatcherError, match="version"):
-        load_patch_entries(yaml_path)
+        load_patch_entries(patches_path)
 
 
-def test_load_patch_entries_rejects_unsupported_version(tmp_path):
-    yaml_path = tmp_path / "bad_version.yml"
-    yaml_path.write_text(yaml.safe_dump({"version": 2, "patches": [{"path": "x.patch", "package": "foo"}]}))
+def test_load_patch_entries_rejects_unsupported_version(write_patches):
+    patches_path = write_patches({"version": 2, "patches": [{"path": "x.patch", "package": "foo"}]})
     with pytest.raises(PyPatcherError, match="unsupported version"):
-        load_patch_entries(yaml_path)
+        load_patch_entries(patches_path)
+
+
+def test_load_patch_entries_reads_an_empty_yaml_file_as_no_version(tmp_path):
+    patches_path = tmp_path / "empty.yml"
+    patches_path.write_text("")
+    with pytest.raises(PyPatcherError, match="version"):
+        load_patch_entries(patches_path)
+
+
+@pytest.mark.parametrize("suffix", [".yml", ".yaml", ".txt"])
+def test_load_patch_entries_reads_every_other_suffix_as_yaml(tmp_path, suffix):
+    patches_path = tmp_path / f"patches{suffix}"
+    patches_path.write_text(yaml.safe_dump({"version": 1, "patches": [{"path": "x.patch", "package": "foo"}]}))
+    assert load_patch_entries(patches_path) == [{"path": "x.patch", "package": "foo"}]
+
+
+def test_load_patch_entries_reports_broken_yaml(tmp_path):
+    patches_path = tmp_path / "broken.yml"
+    patches_path.write_text("version: [1\n")
+    with pytest.raises(PyPatcherError, match="cannot read"):
+        load_patch_entries(patches_path)
+
+
+@needs_tomllib
+def test_load_patch_entries_reports_broken_toml(tmp_path):
+    patches_path = tmp_path / "broken.toml"
+    patches_path.write_text("version = [1\n")
+    with pytest.raises(PyPatcherError, match="cannot read"):
+        load_patch_entries(patches_path)
+
+
+@only_without_tomllib
+def test_load_patch_entries_needs_python_3_11_for_toml(tmp_path):
+    patches_path = tmp_path / "patches.toml"
+    patches_path.write_text(dump_toml({"version": 1, "patches": []}))
+    with pytest.raises(PyPatcherError, match=r"needs Python 3\.11 or newer"):
+        load_patch_entries(patches_path)
 
 
 def test_resolve_package_dir_raises_for_module_without_path_or_file(fake_venv):

@@ -1,0 +1,66 @@
+name: Docs
+
+# Builds doc/ (see doc/conf.py) with Sphinx. On pull requests it only
+# builds, so a broken page fails the check. On main and on a release tag it
+# also publishes the site to the gh_pages branch, which GitHub Pages serves.
+# A tag build shows the release version.
+on:
+  push:
+    branches: [main]
+    tags: ['*.*.*']
+  pull_request:
+    branches: ['**']
+  # by hand: 'Run workflow' in the Actions tab, or `gh workflow run docs.yml`
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          # doc/conf.py shows the version from `git describe`, which needs the tags.
+          fetch-depth: 0
+      - name: Install uv
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
+        with:
+          python-version: '3.13'
+          enable-cache: true
+      - name: Setup project
+        run: uv sync --frozen
+      - name: Build docs
+        run: uv run --no-sync poe docs
+      - name: Upload docs
+        if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/'))
+        uses: actions/upload-artifact@v4
+        with:
+          name: docs-html
+          path: doc/_build/html
+          include-hidden-files: true
+
+  # A job of its own, so only this one can write to the repository.
+  # Only main and tags are published, also when the workflow is started by hand.
+  publish:
+    if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/'))
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download docs
+        uses: actions/download-artifact@v4
+        with:
+          name: docs-html
+          path: site
+      - name: Publish docs
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: gh_pages
+          publish_dir: site
+          force_orphan: true

@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="12 16 418 100" width="418" height="100" role="img" aria-label="venv-patcher">
+  <title>venv-patcher</title>
+  <g stroke="#16202c" stroke-width="2" stroke-linejoin="round">
+    <polygon points="64,24 98,44 64,64 30,44" fill="#6db3f2"/>
+    <polygon points="30,44 64,64 64,106 30,86" fill="#3b7fc4"/>
+    <polygon points="64,64 98,44 98,86 64,106" fill="#245a96"/>
+  </g>
+  <g transform="translate(64 76) rotate(-28)">
+    <rect x="-42" y="-14.5" width="84" height="29" rx="14.5" fill="#f2b632" stroke="#16202c" stroke-width="3"/>
+    <rect x="-15" y="-10" width="30" height="20" rx="4" fill="#fbe3a4"/>
+    <g fill="#c98a12">
+      <circle cx="-30" cy="-5" r="1.8"/><circle cx="-30" cy="5" r="1.8"/><circle cx="-23" cy="0" r="1.8"/>
+      <circle cx="30" cy="-5" r="1.8"/><circle cx="30" cy="5" r="1.8"/><circle cx="23" cy="0" r="1.8"/>
+    </g>
+    <line x1="-9" y1="0" x2="9" y2="0" stroke="#16202c" stroke-width="2.4" stroke-linecap="round"/>
+    <g fill="#16202c"><circle cx="-9" cy="0" r="3.4"/><circle cx="0" cy="0" r="3.4"/></g>
+    <circle cx="9" cy="0" r="3.4" fill="#fbe3a4" stroke="#16202c" stroke-width="2.2"/>
+  </g>
+  <text x="126" y="80" font-family="'JetBrains Mono','Fira Code',Menlo,Consolas,'DejaVu Sans Mono',monospace" font-size="44" font-weight="700" letter-spacing="-1"><tspan fill="#3b7fc4">venv</tspan><tspan fill="#8a96a3">-</tspan><tspan fill="#e0a21f">patcher</tspan></text>
+</svg>

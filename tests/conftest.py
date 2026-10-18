@@ -4,6 +4,7 @@ import sys
 from pathlib import Path
 
 import pytest
+import yaml
 
 import venv_patcher.core as core
 
@@ -65,6 +66,66 @@ def fail_git_subcommand(monkeypatch):
         monkeypatch.setattr(core, "_run_git", fake_run_git)
 
     return _apply
+
+
+def _toml_scalar(value: object) -> str:
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, int):
+        return str(value)
+    if isinstance(value, str):
+        escaped = value.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n")
+        return f'"{escaped}"'
+    raise TypeError(f"unsupported TOML value: {value!r}")
+
+
+def _toml_table_lines(table_name: str, entry: dict) -> list[str]:
+    lines = ["", f"[[{table_name}]]"]
+    lines.extend(f"{key} = {_toml_scalar(value)}" for key, value in entry.items())
+    return lines
+
+
+def _toml_lines_for(key: str, value: object) -> list[str]:
+    if not isinstance(value, list):
+        return [f"{key} = {_toml_scalar(value)}"]
+    lines = []
+    for entry in value:
+        lines.extend(_toml_table_lines(key, entry))
+    return lines
+
+
+def dump_toml(data: dict) -> str:
+    """Serialize a patches-manifest dict as TOML text.
+
+    Handles exactly the shapes venv-patcher's tests need: top-level scalars
+    (e.g. "version") and a top-level "patches" list of flat dicts, written
+    out as [[patches]] array-of-tables blocks -- a minimal, hand-rolled
+    stand-in for the tomllib.load side, since tomllib is read-only.
+    """
+    lines = []
+    for key, value in data.items():
+        lines.extend(_toml_lines_for(key, value))
+    return "\n".join(lines) + "\n"
+
+
+needs_tomllib = pytest.mark.skipif(sys.version_info < (3, 11), reason="tomllib needs Python 3.11")
+only_without_tomllib = pytest.mark.skipif(sys.version_info >= (3, 11), reason="Python 3.11+ has tomllib")
+
+
+@pytest.fixture(params=["yaml", pytest.param("toml", marks=needs_tomllib)])
+def write_patches(request, tmp_path):
+    """Write a patches file, once as YAML and once as TOML (TOML only on 3.11+)."""
+
+    def _write(data: dict, name: str = "patches") -> Path:
+        if request.param == "toml":
+            path = tmp_path / f"{name}.toml"
+            path.write_text(dump_toml(data))
+        else:
+            path = tmp_path / f"{name}.yml"
+            path.write_text(yaml.safe_dump(data))
+        return path
+
+    return _write
 
 
 def make_plain_diff(old_line: str, new_line: str) -> str:

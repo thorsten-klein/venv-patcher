@@ -1,105 +1,84 @@
 # venv-patcher
 
-Apply and track patches to packages installed in a Python virtual environment.
+<img src="https://raw.githubusercontent.com/thorsten-klein/venv-patcher/main/doc/_static/logo.svg" alt="logo" width="500"/>
 
-`venv-patcher` records the pristine state of every package it touches as a git
-commit, applies your patches on top as further deterministic commits, and
-keeps a manifest (in the venv's site-packages) of everything it has done -
-so you can list or fully revert your patches at any time.
+> Apply and track patches to packages installed in a Python virtual environment.
+
+[![Run Tests](https://github.com/thorsten-klein/venv-patcher/actions/workflows/test.yml/badge.svg)](https://github.com/thorsten-klein/venv-patcher/actions/workflows/test.yml)
+[![Docs](https://github.com/thorsten-klein/venv-patcher/actions/workflows/docs.yml/badge.svg)](https://thorsten-klein.github.io/venv-patcher/)
+[![PyPI](https://img.shields.io/pypi/v/venv-patcher.svg)](https://pypi.org/project/venv-patcher/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
+
+**📖 Documentation: <https://thorsten-klein.github.io/venv-patcher/>**
+
+## What is venv-patcher?
+
+venv-patcher applies patches to packages in your venv. It remembers what it
+did. So you can list your patches, and undo them at any time.
+
+```bash
+venv-patcher apply -f patches.yml   # apply your patches
+venv-patcher list                   # see what is patched
+venv-patcher reset                  # undo all patches
+```
+
+The patches file says which patch goes to which package:
+
+```yaml
+version: 1
+patches:
+  - package: requests
+    path: patches/0001-fix.patch
+```
+
+It can also be TOML, with Python 3.11 or newer. See
+[`example.yml`](example.yml) and [`example.toml`](example.toml).
+
+## How does it work?
+
+- The first time, it turns the package folder into a git repository, and
+  commits the files as they are.
+- It applies each patch with `git am` (or `git apply`) as a new commit.
+  Names and dates are fixed, so the commits are the same on every run.
+- It records each result in a manifest in the venv's site-packages.
+- `reset` goes back to the first commit.
 
 ## Install
 
-```
+Install it **into the venv you want to patch**:
+
+```bash
 pip install venv-patcher
 ```
 
-Or straight from git:
+Python 3.9 and git are needed. It does not run outside a venv. Do not
+install it with `pipx` or `uv tool`: it would patch that tool's own venv.
+See [Install venv-patcher](https://github.com/thorsten-klein/venv-patcher/blob/main/doc/introduction/install.md).
 
-```
-pip install git+https://github.com/thorsten-klein/venv-patcher.git
-```
+## Documentation
 
-`venv-patcher` refuses to run outside of an active virtual environment.
+The full documentation is in [`doc/`](https://github.com/thorsten-klein/venv-patcher/blob/main/doc/README.md), and online at
+<https://thorsten-klein.github.io/venv-patcher/>.
 
-## Usage
+- [About venv-patcher](https://github.com/thorsten-klein/venv-patcher/blob/main/doc/introduction/index.md)
+- [venv-patcher in 5 minutes](https://github.com/thorsten-klein/venv-patcher/blob/main/doc/quickstart/05-minutes.md)
+- [How it works](https://github.com/thorsten-klein/venv-patcher/blob/main/doc/concepts/how-it-works.md)
+- [Command reference](https://github.com/thorsten-klein/venv-patcher/blob/main/doc/cli/index.md)
+- [The patches file](https://github.com/thorsten-klein/venv-patcher/blob/main/doc/configuration/patches-file.md)
+- [Guides](https://github.com/thorsten-klein/venv-patcher/blob/main/doc/README.md#guides): writing patches, pinning,
+  upgrades, CI and more
 
-```
-venv-patcher apply -f patches.yml [-f <file> ...] [-p <package> ...] [--skip-missing] [--force]
-venv-patcher list
-venv-patcher reset [-p <package> ...]
-```
+## Contributing
 
-### `apply`
+Pull requests are welcome. See [Development](https://github.com/thorsten-klein/venv-patcher/blob/main/doc/contributing/development.md)
+for the setup and the checks. The short version:
 
-Use `-p`/`--package` one or more times to only apply the patches that target
-those packages, skipping every other entry in the given yaml file(s).
-
-For each patch entry, on first use for a package, `venv-patcher`:
-
-1. Imports the package to find its on-disk directory.
-2. Runs `git init`, adds a `.gitignore` for `__pycache__`/`*.pyc`, then
-   `git add .` and commits the pristine state as `"initial"`.
-
-It then applies the patch (`git am` by default) on top. The result is
-always wrapped in a commit with a pinned author/committer identity and date
-(from the yaml, or a fixed fallback), so re-applying the same patch to the
-same starting state always produces the exact same commit hash.
-
-Patch results (applied or failed) are recorded in the manifest immediately,
-even when a patch fails to apply. The manifest also stores the sha256 of the
-patch file content that was actually applied. Running `apply` again for a
-patch that was already applied:
-
-- prints a warning and skips it, if the patch file on disk is unchanged;
-- errors out and tells you to pass `--force`, if the patch file's content has
-  changed since it was applied (e.g. it's still under development and
-  doesn't have a `sha256sum` pinned down yet) - `venv-patcher` won't silently
-  apply a different patch on top of what's already there.
-
-By default, if a package listed in the yaml can't be imported, `venv-patcher`
-records the failure and aborts immediately without processing any further
-patches. Pass `--skip-missing` to instead skip just that patch and continue
-with the rest.
-
-Pass `--force` to start from a clean slate before applying: `venv-patcher`
-hard-resets the affected packages back to their recorded initial commit and
-clears their patch history first, then applies the yaml file(s) as usual.
-This is meant for iterating on a patch that doesn't have a `sha256sum` pinned
-down yet. Combined with `-p`, only the given package(s) are reset.
-Without `-p`, *every* package tracked in the manifest is reset - including ones
-not mentioned in the yaml file(s) you're currently applying with `-f`.
-
-### `list`
-
-Prints every package with applied patches in the current environment, their
-status, and any errors.
-
-### `reset`
-
-Hard-resets every patched package back to its recorded initial commit and
-clears the manifest's patch history for it. Use `-p`/`--package` one or more
-times to only reset specific packages.
-
-## YAML format
-
-```yaml
-version: 1                          # required, currently must be 1
-patches:
-  - path: patches/0001-fix.patch    # relative to this yaml file, or absolute
-    package: requests               # importable package name
-    sha256sum: <optional sha256 of the patch file>
-    apply-command: git am           # default; use "git apply" for a plain diff
-    author: Jane Doe                # used for the commit identity
-    email: jane@example.com
-    date: "2024-01-01T00:00:00+00:00"
-    comments: "commit message for the patch commit"
+```bash
+uv sync          # install everything
+uv run poe all   # every check CI runs
 ```
 
-See [`example.yml`](example.yml) for a full annotated example.
+## License
 
-## Development
-
-```
-uv sync --group dev
-uv run poe all      # pre-commit, lint, format, mypy, pyright, bandit, pip-audit, complexity, test
-```
+MIT. See [LICENSE](LICENSE).

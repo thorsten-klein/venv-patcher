@@ -1,0 +1,22 @@
+# See README.md for the full field reference. TOML needs Python 3.11 or newer.
+#
+# - package: the importable name of the package to patch (venv-patcher imports
+#   it to find where it lives on disk, e.g. in the venv's site-packages).
+# - path: path to the patch file, relative to this file (or absolute).
+# - author / email / date: pin the commit identity/date venv-patcher uses when
+#   recording the patch, so re-applying it always produces the same commit.
+# - apply-command: defaults to "git am" (expects a `git format-patch`-style
+#   patch file with From/Date/Subject headers). Use "git apply" for a plain
+#   diff instead - venv-patcher will still wrap the result in a deterministic
+#   commit using the author/email/date above.
+version = 1
+
+[[patches]]
+path = "requests/0001-vulnerability-fix.patch"
+sha256sum = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+package = "requests"
+author = "Kermit D. Frog"
+email = "itsnoteasy@being.gr"
+date = 2020-04-20T00:00:00+00:00
+apply-command = "git am"
+comments = "Songs about rainbows - why are there so many??\n"

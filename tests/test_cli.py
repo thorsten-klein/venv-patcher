@@ -1,28 +1,24 @@
 import shutil
 import subprocess
 
-import yaml
-
 from venv_patcher import cli
-from venv_patcher.manifest import load_manifest
+from venv_patcher.manifest import load_manifest, save_manifest
 
 from .conftest import make_plain_diff
 
 
-def _write_yaml(tmp_path, entries, name="patches.yml"):
-    yaml_path = tmp_path / name
-    yaml_path.write_text(yaml.safe_dump({"version": 1, "patches": entries}))
-    return yaml_path
+def _write_patches(write_patches, entries, name="patches"):
+    return write_patches({"version": 1, "patches": entries}, name)
 
 
-def test_apply_list_reset_round_trip(fake_venv, make_package, tmp_path, capsys):
+def test_apply_list_reset_round_trip(write_patches, fake_venv, make_package, tmp_path, capsys):
     pkg_dir = make_package("dummypkg", "VALUE = 1\n")
 
     patch_file = tmp_path / "bump.patch"
     patch_file.write_text(make_plain_diff("VALUE = 1", "VALUE = 2"))
 
-    yaml_path = _write_yaml(
-        tmp_path,
+    patches_path = _write_patches(
+        write_patches,
         [
             {
                 "path": "bump.patch",
@@ -35,7 +31,7 @@ def test_apply_list_reset_round_trip(fake_venv, make_package, tmp_path, capsys):
         ],
     )
 
-    rc = cli.main(["apply", "-f", str(yaml_path)])
+    rc = cli.main(["apply", "-f", str(patches_path)])
     assert rc == 0
     assert (pkg_dir / "__init__.py").read_text() == "VALUE = 2\n"
 
@@ -65,11 +61,11 @@ def test_apply_list_reset_round_trip(fake_venv, make_package, tmp_path, capsys):
     assert "no patches applied" in out
 
 
-def test_apply_records_failure_for_missing_patch_file(fake_venv, make_package, tmp_path):
+def test_apply_records_failure_for_missing_patch_file(write_patches, fake_venv, make_package, tmp_path):
     make_package("dummypkg", "VALUE = 1\n")
-    yaml_path = _write_yaml(tmp_path, [{"path": "does-not-exist.patch", "package": "dummypkg"}])
+    patches_path = _write_patches(write_patches, [{"path": "does-not-exist.patch", "package": "dummypkg"}])
 
-    rc = cli.main(["apply", "-f", str(yaml_path)])
+    rc = cli.main(["apply", "-f", str(patches_path)])
     assert rc == 1
 
     manifest = load_manifest()
@@ -79,17 +75,17 @@ def test_apply_records_failure_for_missing_patch_file(fake_venv, make_package, t
     assert "not found" in record["patches"][0]["error"]
 
 
-def test_apply_records_failure_for_sha256_mismatch(fake_venv, make_package, tmp_path):
+def test_apply_records_failure_for_sha256_mismatch(write_patches, fake_venv, make_package, tmp_path):
     make_package("dummypkg", "VALUE = 1\n")
     patch_file = tmp_path / "bump.patch"
     patch_file.write_text(make_plain_diff("VALUE = 1", "VALUE = 2"))
 
-    yaml_path = _write_yaml(
-        tmp_path,
+    patches_path = _write_patches(
+        write_patches,
         [{"path": "bump.patch", "package": "dummypkg", "sha256sum": "0" * 64}],
     )
 
-    rc = cli.main(["apply", "-f", str(yaml_path)])
+    rc = cli.main(["apply", "-f", str(patches_path)])
     assert rc == 1
 
     manifest = load_manifest()
@@ -98,10 +94,10 @@ def test_apply_records_failure_for_sha256_mismatch(fake_venv, make_package, tmp_
     assert "sha256 mismatch" in entry["error"]
 
 
-def test_apply_records_failure_for_unknown_package(fake_venv, tmp_path):
-    yaml_path = _write_yaml(tmp_path, [{"path": "bump.patch", "package": "does_not_exist_pkg"}])
+def test_apply_records_failure_for_unknown_package(write_patches, fake_venv, tmp_path):
+    patches_path = _write_patches(write_patches, [{"path": "bump.patch", "package": "does_not_exist_pkg"}])
 
-    rc = cli.main(["apply", "-f", str(yaml_path)])
+    rc = cli.main(["apply", "-f", str(patches_path)])
     assert rc == 1
 
     manifest = load_manifest()
@@ -110,12 +106,12 @@ def test_apply_records_failure_for_unknown_package(fake_venv, tmp_path):
     assert "not importable" in entry["error"]
 
 
-def test_apply_is_reapplyable_producing_same_commit(fake_venv, make_package, tmp_path):
+def test_apply_is_reapplyable_producing_same_commit(write_patches, fake_venv, make_package, tmp_path):
     pkg_dir = make_package("dummypkg", "VALUE = 1\n")
     patch_file = tmp_path / "bump.patch"
     patch_file.write_text(make_plain_diff("VALUE = 1", "VALUE = 2"))
-    yaml_path = _write_yaml(
-        tmp_path,
+    patches_path = _write_patches(
+        write_patches,
         [
             {
                 "path": "bump.patch",
@@ -128,13 +124,13 @@ def test_apply_is_reapplyable_producing_same_commit(fake_venv, make_package, tmp
         ],
     )
 
-    assert cli.main(["apply", "-f", str(yaml_path)]) == 0
+    assert cli.main(["apply", "-f", str(patches_path)]) == 0
     first = subprocess.run(
         ["git", "rev-parse", "HEAD"], cwd=pkg_dir, check=True, capture_output=True, text=True
     ).stdout.strip()
 
     assert cli.main(["reset"]) == 0
-    assert cli.main(["apply", "-f", str(yaml_path)]) == 0
+    assert cli.main(["apply", "-f", str(patches_path)]) == 0
     second = subprocess.run(
         ["git", "rev-parse", "HEAD"], cwd=pkg_dir, check=True, capture_output=True, text=True
     ).stdout.strip()
@@ -152,28 +148,28 @@ def test_main_refuses_to_run_outside_venv(monkeypatch, capsys):
     assert "virtual environment" in capsys.readouterr().err
 
 
-def test_apply_missing_yaml_file_reports_error(fake_venv, tmp_path, capsys):
+def test_apply_missing_patches_file_reports_error(fake_venv, tmp_path, capsys):
     rc = cli.main(["apply", "-f", str(tmp_path / "missing.yml")])
     assert rc == 1
     assert "not found" in capsys.readouterr().err
 
 
-def test_apply_package_filter_only_applies_selected_packages(fake_venv, make_package, tmp_path):
+def test_apply_package_filter_only_applies_selected_packages(write_patches, fake_venv, make_package, tmp_path):
     make_package("pkg_a", "VALUE = 1\n")
     make_package("pkg_b", "VALUE = 1\n")
 
     patch_file = tmp_path / "bump.patch"
     patch_file.write_text(make_plain_diff("VALUE = 1", "VALUE = 2"))
 
-    yaml_path = _write_yaml(
-        tmp_path,
+    patches_path = _write_patches(
+        write_patches,
         [
             {"path": "bump.patch", "package": "pkg_a", "apply-command": "git apply"},
             {"path": "bump.patch", "package": "pkg_b", "apply-command": "git apply"},
         ],
     )
 
-    rc = cli.main(["apply", "-f", str(yaml_path), "-p", "pkg_a"])
+    rc = cli.main(["apply", "-f", str(patches_path), "-p", "pkg_a"])
     assert rc == 0
 
     manifest = load_manifest()
@@ -181,22 +177,22 @@ def test_apply_package_filter_only_applies_selected_packages(fake_venv, make_pac
     assert "pkg_b" not in manifest["packages"]
 
 
-def test_reset_package_filter_only_resets_selected_packages(fake_venv, make_package, tmp_path):
+def test_reset_package_filter_only_resets_selected_packages(write_patches, fake_venv, make_package, tmp_path):
     pkg_a_dir = make_package("pkg_a", "VALUE = 1\n")
     pkg_b_dir = make_package("pkg_b", "VALUE = 1\n")
 
     patch_file = tmp_path / "bump.patch"
     patch_file.write_text(make_plain_diff("VALUE = 1", "VALUE = 2"))
 
-    yaml_path = _write_yaml(
-        tmp_path,
+    patches_path = _write_patches(
+        write_patches,
         [
             {"path": "bump.patch", "package": "pkg_a", "apply-command": "git apply"},
             {"path": "bump.patch", "package": "pkg_b", "apply-command": "git apply"},
         ],
     )
 
-    assert cli.main(["apply", "-f", str(yaml_path)]) == 0
+    assert cli.main(["apply", "-f", str(patches_path)]) == 0
     assert (pkg_a_dir / "__init__.py").read_text() == "VALUE = 2\n"
     assert (pkg_b_dir / "__init__.py").read_text() == "VALUE = 2\n"
 
@@ -211,19 +207,23 @@ def test_reset_package_filter_only_resets_selected_packages(fake_venv, make_pack
     assert len(manifest["packages"]["pkg_b"]["patches"]) == 1
 
 
-def test_reapplying_an_already_applied_patch_is_skipped_with_a_warning(fake_venv, make_package, tmp_path, capsys):
+def test_reapplying_an_already_applied_patch_is_skipped_with_a_warning(
+    write_patches, fake_venv, make_package, tmp_path, capsys
+):
     pkg_dir = make_package("dummypkg", "VALUE = 1\n")
     patch_file = tmp_path / "bump.patch"
     patch_file.write_text(make_plain_diff("VALUE = 1", "VALUE = 2"))
-    yaml_path = _write_yaml(tmp_path, [{"path": "bump.patch", "package": "dummypkg", "apply-command": "git apply"}])
+    patches_path = _write_patches(
+        write_patches, [{"path": "bump.patch", "package": "dummypkg", "apply-command": "git apply"}]
+    )
 
-    assert cli.main(["apply", "-f", str(yaml_path)]) == 0
+    assert cli.main(["apply", "-f", str(patches_path)]) == 0
     head_after_first = subprocess.run(
         ["git", "rev-parse", "HEAD"], cwd=pkg_dir, check=True, capture_output=True, text=True
     ).stdout.strip()
 
     capsys.readouterr()
-    rc = cli.main(["apply", "-f", str(yaml_path)])
+    rc = cli.main(["apply", "-f", str(patches_path)])
     err = capsys.readouterr().err
 
     assert rc == 0
@@ -238,13 +238,17 @@ def test_reapplying_an_already_applied_patch_is_skipped_with_a_warning(fake_venv
     assert len(manifest["packages"]["dummypkg"]["patches"]) == 1
 
 
-def test_apply_detects_edited_patch_content_and_errors_without_force(fake_venv, make_package, tmp_path, capsys):
+def test_apply_detects_edited_patch_content_and_errors_without_force(
+    write_patches, fake_venv, make_package, tmp_path, capsys
+):
     pkg_dir = make_package("dummypkg", "VALUE = 1\n")
     patch_file = tmp_path / "bump.patch"
     patch_file.write_text(make_plain_diff("VALUE = 1", "VALUE = 2"))
-    yaml_path = _write_yaml(tmp_path, [{"path": "bump.patch", "package": "dummypkg", "apply-command": "git apply"}])
+    patches_path = _write_patches(
+        write_patches, [{"path": "bump.patch", "package": "dummypkg", "apply-command": "git apply"}]
+    )
 
-    assert cli.main(["apply", "-f", str(yaml_path)]) == 0
+    assert cli.main(["apply", "-f", str(patches_path)]) == 0
     manifest = load_manifest()
     assert manifest["packages"]["dummypkg"]["patches"][0]["patch_sha256"]
 
@@ -256,7 +260,7 @@ def test_apply_detects_edited_patch_content_and_errors_without_force(fake_venv, 
     patch_file.write_text(make_plain_diff("VALUE = 1", "VALUE = 3"))
 
     capsys.readouterr()
-    rc = cli.main(["apply", "-f", str(yaml_path)])
+    rc = cli.main(["apply", "-f", str(patches_path)])
     err = capsys.readouterr().err
 
     assert rc == 1
@@ -276,52 +280,58 @@ def test_apply_detects_edited_patch_content_and_errors_without_force(fake_venv, 
     assert patches[1]["status"] == "failed"
 
 
-def test_apply_reports_missing_patch_file_for_an_already_applied_entry(fake_venv, make_package, tmp_path):
+def test_apply_reports_missing_patch_file_for_an_already_applied_entry(
+    write_patches, fake_venv, make_package, tmp_path
+):
     make_package("dummypkg", "VALUE = 1\n")
     patch_file = tmp_path / "bump.patch"
     patch_file.write_text(make_plain_diff("VALUE = 1", "VALUE = 2"))
-    yaml_path = _write_yaml(tmp_path, [{"path": "bump.patch", "package": "dummypkg", "apply-command": "git apply"}])
+    patches_path = _write_patches(
+        write_patches, [{"path": "bump.patch", "package": "dummypkg", "apply-command": "git apply"}]
+    )
 
-    assert cli.main(["apply", "-f", str(yaml_path)]) == 0
+    assert cli.main(["apply", "-f", str(patches_path)]) == 0
 
     patch_file.unlink()
 
-    rc = cli.main(["apply", "-f", str(yaml_path)])
+    rc = cli.main(["apply", "-f", str(patches_path)])
     assert rc == 1
 
     manifest = load_manifest()
     assert manifest["packages"]["dummypkg"]["patches"][-1]["error"] == f"patch file not found: {patch_file}"
 
 
-def test_apply_force_reapplies_cleanly_after_content_drift(fake_venv, make_package, tmp_path):
+def test_apply_force_reapplies_cleanly_after_content_drift(write_patches, fake_venv, make_package, tmp_path):
     pkg_dir = make_package("dummypkg", "VALUE = 1\n")
     patch_file = tmp_path / "bump.patch"
     patch_file.write_text(make_plain_diff("VALUE = 1", "VALUE = 2"))
-    yaml_path = _write_yaml(tmp_path, [{"path": "bump.patch", "package": "dummypkg", "apply-command": "git apply"}])
+    patches_path = _write_patches(
+        write_patches, [{"path": "bump.patch", "package": "dummypkg", "apply-command": "git apply"}]
+    )
 
-    assert cli.main(["apply", "-f", str(yaml_path)]) == 0
+    assert cli.main(["apply", "-f", str(patches_path)]) == 0
 
     patch_file.write_text(make_plain_diff("VALUE = 1", "VALUE = 3"))
-    assert cli.main(["apply", "-f", str(yaml_path)]) == 1  # detected drift, refuses
+    assert cli.main(["apply", "-f", str(patches_path)]) == 1  # detected drift, refuses
 
-    assert cli.main(["apply", "-f", str(yaml_path), "--force"]) == 0
+    assert cli.main(["apply", "-f", str(patches_path), "--force"]) == 0
     assert (pkg_dir / "__init__.py").read_text() == "VALUE = 3\n"
 
 
-def test_apply_aborts_on_missing_package_by_default(fake_venv, make_package, tmp_path):
+def test_apply_aborts_on_missing_package_by_default(write_patches, fake_venv, make_package, tmp_path):
     make_package("pkg_a", "VALUE = 1\n")
     patch_file = tmp_path / "bump.patch"
     patch_file.write_text(make_plain_diff("VALUE = 1", "VALUE = 2"))
 
-    yaml_path = _write_yaml(
-        tmp_path,
+    patches_path = _write_patches(
+        write_patches,
         [
             {"path": "bump.patch", "package": "does_not_exist_pkg"},
             {"path": "bump.patch", "package": "pkg_a", "apply-command": "git apply"},
         ],
     )
 
-    rc = cli.main(["apply", "-f", str(yaml_path)])
+    rc = cli.main(["apply", "-f", str(patches_path)])
     assert rc == 1
 
     manifest = load_manifest()
@@ -330,20 +340,20 @@ def test_apply_aborts_on_missing_package_by_default(fake_venv, make_package, tmp
     assert "pkg_a" not in manifest["packages"]
 
 
-def test_apply_skip_missing_continues_past_missing_packages(fake_venv, make_package, tmp_path):
+def test_apply_skip_missing_continues_past_missing_packages(write_patches, fake_venv, make_package, tmp_path):
     pkg_dir = make_package("pkg_a", "VALUE = 1\n")
     patch_file = tmp_path / "bump.patch"
     patch_file.write_text(make_plain_diff("VALUE = 1", "VALUE = 2"))
 
-    yaml_path = _write_yaml(
-        tmp_path,
+    patches_path = _write_patches(
+        write_patches,
         [
             {"path": "bump.patch", "package": "does_not_exist_pkg"},
             {"path": "bump.patch", "package": "pkg_a", "apply-command": "git apply"},
         ],
     )
 
-    rc = cli.main(["apply", "-f", str(yaml_path), "--skip-missing"])
+    rc = cli.main(["apply", "-f", str(patches_path), "--skip-missing"])
     assert rc == 1  # still non-zero: the missing package is a recorded failure
 
     manifest = load_manifest()
@@ -352,24 +362,25 @@ def test_apply_skip_missing_continues_past_missing_packages(fake_venv, make_pack
     assert (pkg_dir / "__init__.py").read_text() == "VALUE = 2\n"
 
 
-def test_apply_malformed_yaml_reports_error(fake_venv, tmp_path, capsys):
-    yaml_path = tmp_path / "bad.yml"
-    yaml_path.write_text(yaml.safe_dump({"version": 1, "patches": [{"path": "x.patch"}]}))
+def test_apply_malformed_patches_file_reports_error(fake_venv, write_patches, capsys):
+    patches_path = write_patches({"version": 1, "patches": [{"path": "x.patch"}]})
 
-    rc = cli.main(["apply", "-f", str(yaml_path)])
+    rc = cli.main(["apply", "-f", str(patches_path)])
     assert rc == 1
     assert "missing required field" in capsys.readouterr().err
 
 
-def test_apply_records_failure_when_git_init_fails(fake_venv, make_package, tmp_path, fail_git_subcommand):
+def test_apply_records_failure_when_git_init_fails(
+    write_patches, fake_venv, make_package, tmp_path, fail_git_subcommand
+):
     make_package("dummypkg", "VALUE = 1\n")
     patch_file = tmp_path / "bump.patch"
     patch_file.write_text(make_plain_diff("VALUE = 1", "VALUE = 2"))
-    yaml_path = _write_yaml(tmp_path, [{"path": "bump.patch", "package": "dummypkg"}])
+    patches_path = _write_patches(write_patches, [{"path": "bump.patch", "package": "dummypkg"}])
 
     fail_git_subcommand("init", "init boom")
 
-    rc = cli.main(["apply", "-f", str(yaml_path)])
+    rc = cli.main(["apply", "-f", str(patches_path)])
     assert rc == 1
 
     manifest = load_manifest()
@@ -379,17 +390,17 @@ def test_apply_records_failure_when_git_init_fails(fake_venv, make_package, tmp_
 
 
 def test_reset_skips_package_with_location_but_no_initial_commit(
-    fake_venv, make_package, tmp_path, fail_git_subcommand, capsys
+    write_patches, fake_venv, make_package, tmp_path, fail_git_subcommand, capsys
 ):
     # A package whose git init failed has its location recorded but never
     # gets an initial_commit; reset must skip it rather than crash.
     make_package("dummypkg", "VALUE = 1\n")
     patch_file = tmp_path / "bump.patch"
     patch_file.write_text(make_plain_diff("VALUE = 1", "VALUE = 2"))
-    yaml_path = _write_yaml(tmp_path, [{"path": "bump.patch", "package": "dummypkg"}])
+    patches_path = _write_patches(write_patches, [{"path": "bump.patch", "package": "dummypkg"}])
 
     fail_git_subcommand("init", "init boom")
-    cli.main(["apply", "-f", str(yaml_path)])
+    cli.main(["apply", "-f", str(patches_path)])
 
     capsys.readouterr()
     rc = cli.main(["reset"])
@@ -398,13 +409,15 @@ def test_reset_skips_package_with_location_but_no_initial_commit(
     assert "dummypkg" not in out
 
 
-def test_apply_records_failure_when_patch_content_is_invalid(fake_venv, make_package, tmp_path):
+def test_apply_records_failure_when_patch_content_is_invalid(write_patches, fake_venv, make_package, tmp_path):
     make_package("dummypkg", "VALUE = 1\n")
     patch_file = tmp_path / "bad.patch"
     patch_file.write_text("this is not a valid patch\n")
-    yaml_path = _write_yaml(tmp_path, [{"path": "bad.patch", "package": "dummypkg", "apply-command": "git apply"}])
+    patches_path = _write_patches(
+        write_patches, [{"path": "bad.patch", "package": "dummypkg", "apply-command": "git apply"}]
+    )
 
-    rc = cli.main(["apply", "-f", str(yaml_path)])
+    rc = cli.main(["apply", "-f", str(patches_path)])
     assert rc == 1
 
     manifest = load_manifest()
@@ -419,9 +432,9 @@ def test_list_reports_no_patches_on_a_fresh_environment(fake_venv, capsys):
     assert "No patches applied in this environment." in capsys.readouterr().out
 
 
-def test_list_prints_error_for_a_failed_patch(fake_venv, tmp_path, capsys):
-    yaml_path = _write_yaml(tmp_path, [{"path": "bump.patch", "package": "does_not_exist_pkg"}])
-    cli.main(["apply", "-f", str(yaml_path)])
+def test_list_prints_error_for_a_failed_patch(write_patches, fake_venv, tmp_path, capsys):
+    patches_path = _write_patches(write_patches, [{"path": "bump.patch", "package": "does_not_exist_pkg"}])
+    cli.main(["apply", "-f", str(patches_path)])
 
     capsys.readouterr()
     rc = cli.main(["list"])
@@ -431,15 +444,24 @@ def test_list_prints_error_for_a_failed_patch(fake_venv, tmp_path, capsys):
     assert "error:" in out
 
 
+def test_list_reads_the_source_of_an_old_manifest(fake_venv, capsys):
+    # manifests written before TOML support name the field "source_yaml"
+    entry = {"path": "x.patch", "source_yaml": "/old/patches.yml", "applied_at": "then", "status": "applied"}
+    save_manifest({"packages": {"dummypkg": {"location": None, "initial_commit": None, "patches": [entry]}}})
+
+    assert cli.main(["list"]) == 0
+    assert "(from /old/patches.yml, then)" in capsys.readouterr().out
+
+
 def test_reset_reports_no_patches_on_a_fresh_environment(fake_venv, capsys):
     rc = cli.main(["reset"])
     assert rc == 0
     assert "No patches to reset." in capsys.readouterr().out
 
 
-def test_reset_skips_package_that_was_never_git_initialized(fake_venv, tmp_path, capsys):
-    yaml_path = _write_yaml(tmp_path, [{"path": "bump.patch", "package": "does_not_exist_pkg"}])
-    cli.main(["apply", "-f", str(yaml_path)])
+def test_reset_skips_package_that_was_never_git_initialized(write_patches, fake_venv, tmp_path, capsys):
+    patches_path = _write_patches(write_patches, [{"path": "bump.patch", "package": "does_not_exist_pkg"}])
+    cli.main(["apply", "-f", str(patches_path)])
 
     capsys.readouterr()
     rc = cli.main(["reset"])
@@ -448,12 +470,14 @@ def test_reset_skips_package_that_was_never_git_initialized(fake_venv, tmp_path,
     assert "does_not_exist_pkg" not in out
 
 
-def test_reset_warns_when_package_location_no_longer_exists(fake_venv, make_package, tmp_path, capsys):
+def test_reset_warns_when_package_location_no_longer_exists(write_patches, fake_venv, make_package, tmp_path, capsys):
     pkg_dir = make_package("dummypkg", "VALUE = 1\n")
     patch_file = tmp_path / "bump.patch"
     patch_file.write_text(make_plain_diff("VALUE = 1", "VALUE = 2"))
-    yaml_path = _write_yaml(tmp_path, [{"path": "bump.patch", "package": "dummypkg", "apply-command": "git apply"}])
-    assert cli.main(["apply", "-f", str(yaml_path)]) == 0
+    patches_path = _write_patches(
+        write_patches, [{"path": "bump.patch", "package": "dummypkg", "apply-command": "git apply"}]
+    )
+    assert cli.main(["apply", "-f", str(patches_path)]) == 0
 
     shutil.rmtree(pkg_dir)
 
@@ -464,12 +488,14 @@ def test_reset_warns_when_package_location_no_longer_exists(fake_venv, make_pack
     assert "no longer exists" in err
 
 
-def test_reset_reports_failure_when_reset_package_fails(fake_venv, make_package, tmp_path, monkeypatch):
+def test_reset_reports_failure_when_reset_package_fails(write_patches, fake_venv, make_package, tmp_path, monkeypatch):
     make_package("dummypkg", "VALUE = 1\n")
     patch_file = tmp_path / "bump.patch"
     patch_file.write_text(make_plain_diff("VALUE = 1", "VALUE = 2"))
-    yaml_path = _write_yaml(tmp_path, [{"path": "bump.patch", "package": "dummypkg", "apply-command": "git apply"}])
-    assert cli.main(["apply", "-f", str(yaml_path)]) == 0
+    patches_path = _write_patches(
+        write_patches, [{"path": "bump.patch", "package": "dummypkg", "apply-command": "git apply"}]
+    )
+    assert cli.main(["apply", "-f", str(patches_path)]) == 0
 
     monkeypatch.setattr(cli, "reset_package", lambda package_dir, initial_commit: (False, "boom"))
 
@@ -477,24 +503,32 @@ def test_reset_reports_failure_when_reset_package_fails(fake_venv, make_package,
     assert rc == 1
 
 
-def test_apply_force_applies_normally_when_nothing_was_previously_applied(fake_venv, make_package, tmp_path):
+def test_apply_force_applies_normally_when_nothing_was_previously_applied(
+    write_patches, fake_venv, make_package, tmp_path
+):
     pkg_dir = make_package("dummypkg", "VALUE = 1\n")
     patch_file = tmp_path / "bump.patch"
     patch_file.write_text(make_plain_diff("VALUE = 1", "VALUE = 2"))
-    yaml_path = _write_yaml(tmp_path, [{"path": "bump.patch", "package": "dummypkg", "apply-command": "git apply"}])
+    patches_path = _write_patches(
+        write_patches, [{"path": "bump.patch", "package": "dummypkg", "apply-command": "git apply"}]
+    )
 
-    rc = cli.main(["apply", "-f", str(yaml_path), "--force"])
+    rc = cli.main(["apply", "-f", str(patches_path), "--force"])
     assert rc == 0
     assert (pkg_dir / "__init__.py").read_text() == "VALUE = 2\n"
 
 
-def test_apply_force_resets_the_package_then_reapplies_edited_patch_content(fake_venv, make_package, tmp_path, capsys):
+def test_apply_force_resets_the_package_then_reapplies_edited_patch_content(
+    write_patches, fake_venv, make_package, tmp_path, capsys
+):
     pkg_dir = make_package("dummypkg", "VALUE = 1\n")
     patch_file = tmp_path / "bump.patch"
     patch_file.write_text(make_plain_diff("VALUE = 1", "VALUE = 2"))
-    yaml_path = _write_yaml(tmp_path, [{"path": "bump.patch", "package": "dummypkg", "apply-command": "git apply"}])
+    patches_path = _write_patches(
+        write_patches, [{"path": "bump.patch", "package": "dummypkg", "apply-command": "git apply"}]
+    )
 
-    assert cli.main(["apply", "-f", str(yaml_path)]) == 0
+    assert cli.main(["apply", "-f", str(patches_path)]) == 0
     assert (pkg_dir / "__init__.py").read_text() == "VALUE = 2\n"
 
     # the patch is still under development: its content changes, but its
@@ -502,7 +536,7 @@ def test_apply_force_resets_the_package_then_reapplies_edited_patch_content(fake
     patch_file.write_text(make_plain_diff("VALUE = 1", "VALUE = 3"))
 
     capsys.readouterr()
-    rc = cli.main(["apply", "-f", str(yaml_path), "--force"])
+    rc = cli.main(["apply", "-f", str(patches_path), "--force"])
     out = capsys.readouterr().out
 
     assert rc == 0
@@ -521,23 +555,23 @@ def test_apply_force_resets_the_package_then_reapplies_edited_patch_content(fake
     assert len(history) == 2  # initial + the reapplied patch, no leftover commits
 
 
-def test_apply_force_only_resets_the_given_package_with_dash_p(fake_venv, make_package, tmp_path):
+def test_apply_force_only_resets_the_given_package_with_dash_p(write_patches, fake_venv, make_package, tmp_path):
     pkg_a_dir = make_package("pkg_a", "VALUE = 1\n")
     pkg_b_dir = make_package("pkg_b", "VALUE = 1\n")
     patch_file = tmp_path / "bump.patch"
     patch_file.write_text(make_plain_diff("VALUE = 1", "VALUE = 2"))
-    yaml_path = _write_yaml(
-        tmp_path,
+    patches_path = _write_patches(
+        write_patches,
         [
             {"path": "bump.patch", "package": "pkg_a", "apply-command": "git apply"},
             {"path": "bump.patch", "package": "pkg_b", "apply-command": "git apply"},
         ],
     )
 
-    assert cli.main(["apply", "-f", str(yaml_path)]) == 0
+    assert cli.main(["apply", "-f", str(patches_path)]) == 0
 
     # only pkg_a is force-reapplied; pkg_b is untouched by the -p filter
-    rc = cli.main(["apply", "-f", str(yaml_path), "-p", "pkg_a", "--force"])
+    rc = cli.main(["apply", "-f", str(patches_path), "-p", "pkg_a", "--force"])
     assert rc == 0
 
     manifest = load_manifest()
@@ -547,24 +581,26 @@ def test_apply_force_only_resets_the_given_package_with_dash_p(fake_venv, make_p
     assert (pkg_b_dir / "__init__.py").read_text() == "VALUE = 2\n"
 
 
-def test_apply_force_without_dash_p_resets_every_tracked_package(fake_venv, make_package, tmp_path):
+def test_apply_force_without_dash_p_resets_every_tracked_package(write_patches, fake_venv, make_package, tmp_path):
     pkg_a_dir = make_package("pkg_a", "VALUE = 1\n")
     pkg_b_dir = make_package("pkg_b", "VALUE = 1\n")
     patch_file = tmp_path / "bump.patch"
     patch_file.write_text(make_plain_diff("VALUE = 1", "VALUE = 2"))
-    yaml_path = _write_yaml(tmp_path, [{"path": "bump.patch", "package": "pkg_a", "apply-command": "git apply"}])
-    other_yaml_path = _write_yaml(
-        tmp_path,
+    patches_path = _write_patches(
+        write_patches, [{"path": "bump.patch", "package": "pkg_a", "apply-command": "git apply"}]
+    )
+    other_patches_path = _write_patches(
+        write_patches,
         [{"path": "bump.patch", "package": "pkg_b", "apply-command": "git apply"}],
-        name="other_patches.yml",
+        name="other_patches",
     )
 
-    assert cli.main(["apply", "-f", str(yaml_path)]) == 0
-    assert cli.main(["apply", "-f", str(other_yaml_path)]) == 0
+    assert cli.main(["apply", "-f", str(patches_path)]) == 0
+    assert cli.main(["apply", "-f", str(other_patches_path)]) == 0
 
     # --force with no -p resets every package tracked in the manifest, even
-    # pkg_b which isn't mentioned in this run's yaml file.
-    rc = cli.main(["apply", "-f", str(yaml_path), "--force"])
+    # pkg_b which isn't mentioned in this run's patches file.
+    rc = cli.main(["apply", "-f", str(patches_path), "--force"])
     assert rc == 0
 
     manifest = load_manifest()
@@ -574,16 +610,18 @@ def test_apply_force_without_dash_p_resets_every_tracked_package(fake_venv, make
     assert (pkg_b_dir / "__init__.py").read_text() == "VALUE = 1\n"
 
 
-def test_apply_force_records_failure_when_reset_fails(fake_venv, make_package, tmp_path, monkeypatch):
+def test_apply_force_records_failure_when_reset_fails(write_patches, fake_venv, make_package, tmp_path, monkeypatch):
     make_package("dummypkg", "VALUE = 1\n")
     patch_file = tmp_path / "bump.patch"
     patch_file.write_text(make_plain_diff("VALUE = 1", "VALUE = 2"))
-    yaml_path = _write_yaml(tmp_path, [{"path": "bump.patch", "package": "dummypkg", "apply-command": "git apply"}])
-    assert cli.main(["apply", "-f", str(yaml_path)]) == 0
+    patches_path = _write_patches(
+        write_patches, [{"path": "bump.patch", "package": "dummypkg", "apply-command": "git apply"}]
+    )
+    assert cli.main(["apply", "-f", str(patches_path)]) == 0
 
     monkeypatch.setattr(cli, "reset_package", lambda package_dir, initial_commit: (False, "boom"))
 
-    rc = cli.main(["apply", "-f", str(yaml_path), "--force"])
+    rc = cli.main(["apply", "-f", str(patches_path), "--force"])
     assert rc == 1
 
     manifest = load_manifest()
