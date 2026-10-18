@@ -56,7 +56,7 @@ and [`example.toml`](https://github.com/thorsten-klein/venv-patcher/blob/main/ex
 | Field | Required | Default |
 |---|---|---|
 | [`package`](#package) | yes | |
-| [`path`](#path) | yes | |
+| [`path`](#path) | no | no patch: only set up git |
 | [`sha256sum`](#sha256sum) | no | no check |
 | [`apply-command`](#apply-command) | no | `git am` |
 | [`author`](#author) | no | `venv-patcher` |
@@ -78,6 +78,18 @@ single `.py` file right in site-packages, like `six.py`, does not work.
 
 The patch file. A relative path is relative to the folder of the patches
 file. An absolute path is used as it is.
+
+Leave `path` out to only set up git for the package, with no patch:
+
+```yaml
+version: 1
+patches:
+  - package: requests
+```
+
+`apply` then runs `git init` in the package folder and makes the initial
+commit. Nothing else changes. Use this to start a new patch right in the
+package folder. See [Write a patch](../guides/write-a-patch.md#in-the-package-folder).
 
 The paths inside the patch must be relative to the package folder. See
 [Write a patch](../guides/write-a-patch.md).

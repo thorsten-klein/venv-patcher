@@ -64,6 +64,44 @@ python -c 'import requests'   # still imports?
 
 To change the patch and try again, see [Work on a patch](iterate.md).
 
+## In the package folder
+
+You can also work right in the venv. List the package without a patch:
+
+```yaml
+version: 1
+patches:
+  - package: requests
+```
+
+```bash
+venv-patcher apply -f patches.yml
+```
+
+```text
+initialized git tracking for requests at .../site-packages/requests (22992424)
+```
+
+The package folder is now a git repository. Change it, commit, and save the
+patch:
+
+```bash
+cd "$(python -c 'import requests, pathlib; print(pathlib.Path(requests.__file__).parent)')"
+# edit files ...
+git commit -am "Fix the timeout handling"
+git format-patch -1 -o ~/project/patches/requests
+```
+
+Then add `path` to the entry, and apply it the normal way:
+
+```bash
+cd ~/project
+venv-patcher apply --force -p requests -f patches.yml
+```
+
+`--force` drops your own commit and applies the saved patch instead. Now the
+manifest knows about it.
+
 ## A plain diff
 
 You can also use a plain diff, for example from `diff -u` or `git diff`.

@@ -289,19 +289,48 @@ def _resolve_or_fail(
     return package_dir
 
 
-def _ensure_git_tracking(manifest: dict, pkg_record: dict, entry: dict, package: str, package_dir: Path) -> bool:
+def _start_tracking(manifest: dict, pkg_record: dict, package: str, package_dir: Path) -> str | None:
+    """Make the initial commit of package, the first time. Returns an error, or None."""
     if pkg_record["initial_commit"] is not None:
-        return True
+        return None
 
     try:
         initial_commit = ensure_git_initialized(package_dir)
     except PyPatcherError as e:
-        _record_failure(manifest, pkg_record, entry, f"could not initialize git tracking for {package}: {e}")
-        return False
+        return f"could not initialize git tracking for {package}: {e}"
 
     pkg_record["initial_commit"] = initial_commit
     save_manifest(manifest)
     print(f"initialized git tracking for {package} at {package_dir} ({initial_commit[:8]})")
+    return None
+
+
+def _ensure_git_tracking(manifest: dict, pkg_record: dict, entry: dict, package: str, package_dir: Path) -> bool:
+    error = _start_tracking(manifest, pkg_record, package, package_dir)
+    if error is not None:
+        return _record_failure(manifest, pkg_record, entry, error)
+    return True
+
+
+def _track_only(manifest: dict, package: str, skip_missing: bool) -> bool:
+    """Set up git tracking for a package that is listed without a patch.
+
+    Then you can change its files, commit, and save that as a patch.
+    """
+    try:
+        package_dir = resolve_package_dir(package)
+    except PyPatcherError as e:
+        print(f"error: {e}", file=sys.stderr)
+        if not skip_missing:
+            raise _PackageNotFound(str(e)) from e
+        return False
+
+    pkg_record = get_package_record(manifest, package)
+    pkg_record["location"] = str(package_dir)
+    error = _start_tracking(manifest, pkg_record, package, package_dir)
+    if error is not None:
+        print(f"error: {error}", file=sys.stderr)
+        return False
     return True
 
 
@@ -425,6 +454,8 @@ def _apply_one(
 ) -> bool:
     """Apply a single patch entry, recording the outcome in manifest."""
     package = patch_info["package"]
+    if "path" not in patch_info:
+        return _track_only(manifest, package, skip_missing)
     rel_path = patch_info["path"]
     apply_command = patch_info.get("apply-command", DEFAULT_APPLY_COMMAND)
     date = patch_info.get("date")

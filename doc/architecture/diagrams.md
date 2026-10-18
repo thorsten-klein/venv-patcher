@@ -27,7 +27,9 @@ sequenceDiagram
     loop For each -f file
         Note over venv-patcher: Read YAML, or TOML on 3.11+<br/>Check version, package, path
         loop For each entry (filtered by -p)
-            alt Already applied (same resolved path)
+            alt No path: only git tracking
+                Note over venv-patcher,Git: import package, then init and<br/>initial commit as below, once
+            else Already applied (same resolved path)
                 Note over venv-patcher: Same hash: warn, skip<br/>Other hash or gone: record failure
             else New
                 Note over venv-patcher: import package, find its folder

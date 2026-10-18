@@ -8,7 +8,8 @@ venv-patcher apply -f <file> [-f <file> ...] [-p <package> ...] [--skip-missing]
 
 ## What it does
 
-For each entry of each patches file, in order:
+For each entry of each patches file, in order. An entry without `path`
+only gets steps 2 and 3.
 
 1. Skip it if it is already applied and the patch file did not change.
 2. Import the package and find its folder.

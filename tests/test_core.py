@@ -199,10 +199,15 @@ def test_reset_package_removes_untracked_files(make_package):
     assert (pkg_dir / "__init__.py").read_text() == "VALUE = 1\n"
 
 
-def test_load_patch_entries_requires_package_and_path(write_patches):
+def test_load_patch_entries_requires_package(write_patches):
     patches_path = write_patches({"version": 1, "patches": [{"path": "x.patch"}]})
     with pytest.raises(PyPatcherError, match="package"):
         load_patch_entries(patches_path)
+
+
+def test_load_patch_entries_allows_an_entry_without_path(write_patches):
+    patches_path = write_patches({"version": 1, "patches": [{"package": "foo"}]})
+    assert load_patch_entries(patches_path) == [{"package": "foo"}]
 
 
 def test_load_patch_entries_parses_valid_file(write_patches):

@@ -86,6 +86,10 @@ flowchart TD
     I --> R[record 'applied']
 ```
 
+An entry without `path` only gets steps 3 and 4: find the package folder,
+and make the initial commit. That sets up git, so you can start a patch in
+the package folder.
+
 ## Why the commits are always the same
 
 Every commit venv-patcher makes uses a pinned identity:
