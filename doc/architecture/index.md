@@ -53,7 +53,8 @@ flowchart TD
 | `build_parser` | the `argparse` parser: commands, options, help texts |
 | `main` | the entry point; checks the venv and picks the command |
 | `cmd_apply`, `cmd_list`, `cmd_reset` | one per command |
-| `_apply_one` | all steps for one entry, in order |
+| `_apply_one` | one entry: only set up git, or apply its patch |
+| `_apply_patch_entry` | all steps for one patch, in order |
 | `_reset_packages` | used by `reset` and by `apply --force` |
 
 ### `core.py`
@@ -69,7 +70,6 @@ flowchart TD
 | `sha256_of` | the hash of a patch file |
 | `git_date` | adds the time 00:00:00 UTC to a date alone, which git refuses |
 | `has_outside_changes` | whether someone else, like pip, changed the package files |
-| `drop_git_tracking` | removes the git repository of a package, keeps its files |
 
 ## Key decisions
 
@@ -117,10 +117,12 @@ change someone else made, for example pip during an upgrade. Then `apply`
 stops, and `reset` keeps the files and drops the history. A hard reset
 there would put back the files of the old version.
 
-### Small functions
+### Functions of the right size
 
-`complexipy` limits each function to a complexity of 5. That is why
-`_apply_one` is split into many small helpers, one per step.
+`complexipy` limits each function to a complexity of 8. Within that limit,
+a function keeps its steps together. A small helper with only one caller
+is merged back into that caller. A helper stays when it is used more than
+once, or when merging it would go over the limit.
 
 ## Git calls
 
