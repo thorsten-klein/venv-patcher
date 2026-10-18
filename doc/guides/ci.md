@@ -34,7 +34,7 @@ uv run pytest
 
 > [!WARNING]
 > If `uv sync` installs another version of a patched package, the patches
-> are gone, but the manifest still lists them. See
+> are gone. `apply` then stops for that package. See
 > [Upgrade a patched package](upgrade.md).
 
 ## git is needed

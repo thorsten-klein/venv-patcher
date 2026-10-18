@@ -27,6 +27,10 @@ sequenceDiagram
     loop For each -f file
         Note over venv-patcher: Read YAML, or TOML on 3.11+<br/>Check version, package, path
         loop For each entry (filtered by -p)
+            opt Has a path, package tracked
+                venv-patcher->>Git: status --porcelain
+                Note over venv-patcher: Changes? Record failure: use --force
+            end
             alt No path: only git tracking
                 Note over venv-patcher,Git: import package, then init and<br/>initial commit as below, once
             else Already applied (same resolved path)
@@ -104,11 +108,17 @@ sequenceDiagram
     venv-patcher->>Manifest: load
     loop For each package (filtered by -p)
         Note over venv-patcher: Skip if no folder or no initial commit<br/>Warn if the folder is gone
-        opt .git/rebase-apply there
-            venv-patcher->>Git: am --abort
+        venv-patcher->>Git: status --porcelain
+        alt Changed outside (e.g. pip upgrade)
+            Note over venv-patcher: Remove .git, keep the files
+            venv-patcher->>Manifest: no initial commit, empty patches, save
+        else Unchanged
+            opt .git/rebase-apply there
+                venv-patcher->>Git: am --abort
+            end
+            venv-patcher->>Git: reset -q --hard <initial commit>
+            venv-patcher->>Git: clean -q -fd
+            venv-patcher->>Manifest: empty patches, save
         end
-        venv-patcher->>Git: reset -q --hard <initial commit>
-        venv-patcher->>Git: clean -q -fd
-        venv-patcher->>Manifest: empty patches, save
     end
 ```

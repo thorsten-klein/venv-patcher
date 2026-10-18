@@ -68,6 +68,8 @@ flowchart TD
 | `load_patch_entries` | reads and checks a patches file |
 | `sha256_of` | the hash of a patch file |
 | `git_date` | adds the time 00:00:00 UTC to a date alone, which git refuses |
+| `has_outside_changes` | whether someone else, like pip, changed the package files |
+| `drop_git_tracking` | removes the git repository of a package, keeps its files |
 
 ## Key decisions
 
@@ -107,6 +109,13 @@ the process is stopped, the manifest still says what happened.
 `tomllib` is part of Python since 3.11. venv-patcher still supports 3.9.
 So it reads TOML only when `tomllib` is there. On older Pythons a `.toml`
 file stops with a clear error.
+
+### Notice changes from pip
+
+venv-patcher commits every change it makes. So `git status` shows any
+change someone else made, for example pip during an upgrade. Then `apply`
+stops, and `reset` keeps the files and drops the history. A hard reset
+there would put back the files of the old version.
 
 ### Small functions
 

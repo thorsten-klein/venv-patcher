@@ -703,3 +703,65 @@ def test_an_entry_without_path_reports_a_failed_git_init(
     assert "could not initialize git tracking for dummypkg: " in capsys.readouterr().err
     # nothing worked, so nothing is recorded
     assert "dummypkg" not in load_manifest()["packages"]
+
+
+def _apply_then_upgrade(write_patches, make_package, tmp_path):
+    """Patch dummypkg, then change its files the way a pip upgrade does."""
+    pkg_dir = make_package("dummypkg", "VALUE = 1\n")
+    patch_file = tmp_path / "bump.patch"
+    patch_file.write_text(make_plain_diff("VALUE = 1", "VALUE = 2"))
+    patches_path = _write_patches(
+        write_patches, [{"path": "bump.patch", "package": "dummypkg", "apply-command": "git apply"}]
+    )
+    assert cli.main(["apply", "-f", str(patches_path)]) == 0
+
+    # the new version: the patched file is new again, and there is a new file
+    (pkg_dir / "__init__.py").write_text("VALUE = 1\n")
+    (pkg_dir / "new.py").write_text("NEW = 1\n")
+    return pkg_dir, patches_path
+
+
+def test_apply_refuses_a_package_that_changed_since_it_was_patched(
+    write_patches, fake_venv, make_package, tmp_path, capsys
+):
+    pkg_dir, patches_path = _apply_then_upgrade(write_patches, make_package, tmp_path)
+    capsys.readouterr()
+
+    # before, this said "already applied" and skipped the patch
+    assert cli.main(["apply", "-f", str(patches_path)]) == 1
+    err = capsys.readouterr().err
+    assert "dummypkg changed since venv-patcher patched it" in err
+    assert "--force -p dummypkg" in err
+    assert (pkg_dir / "__init__.py").read_text() == "VALUE = 1\n"
+    assert load_manifest()["packages"]["dummypkg"]["patches"][-1]["status"] == "failed"
+
+
+def test_apply_force_starts_again_from_the_installed_files(write_patches, fake_venv, make_package, tmp_path, capsys):
+    pkg_dir, patches_path = _apply_then_upgrade(write_patches, make_package, tmp_path)
+    old_initial = load_manifest()["packages"]["dummypkg"]["initial_commit"]
+
+    assert cli.main(["apply", "--force", "-p", "dummypkg", "-f", str(patches_path)]) == 0
+    assert "kept the installed files" in capsys.readouterr().err
+
+    record = load_manifest()["packages"]["dummypkg"]
+    assert record["initial_commit"] != old_initial
+    assert [p["status"] for p in record["patches"]] == ["applied"]
+    assert (pkg_dir / "__init__.py").read_text() == "VALUE = 2\n"
+    # the new file is part of the new initial commit
+    tracked = subprocess.run(
+        ["git", "ls-files"], cwd=pkg_dir, check=True, capture_output=True, text=True
+    ).stdout.split()
+    assert "new.py" in tracked
+
+
+def test_reset_keeps_the_files_of_a_package_that_changed(write_patches, fake_venv, make_package, tmp_path):
+    pkg_dir, _ = _apply_then_upgrade(write_patches, make_package, tmp_path)
+
+    # a hard reset would bring back the old files, and delete new.py
+    assert cli.main(["reset"]) == 0
+    assert (pkg_dir / "__init__.py").read_text() == "VALUE = 1\n"
+    assert (pkg_dir / "new.py").exists()
+    assert not (pkg_dir / ".git").exists()
+    record = load_manifest()["packages"]["dummypkg"]
+    assert record["initial_commit"] is None
+    assert record["patches"] == []

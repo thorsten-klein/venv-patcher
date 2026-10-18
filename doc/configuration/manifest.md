@@ -62,6 +62,8 @@ Older manifests name `source_file` as `source_yaml`. `list` reads both.
 
 ## How it is used
 
+- `apply` and `reset` first check that the package files still match the
+  last commit. If not, pip or someone else changed them.
 - `apply` skips a patch when there is an `applied` result with the same
   `resolved_path` and the same `patch_sha256`.
 - `apply` does `git init` only when `initial_commit` is `null`.

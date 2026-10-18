@@ -65,6 +65,18 @@ error: patches/0001-fix.patch was already applied to requests but its content ha
 A patch counts as the same when its full path is the same. Two patches
 files that name the same patch file share it.
 
+## A package that changed
+
+If the files of a patched package differ from its last commit, someone
+else changed them, for example pip during an upgrade. `apply` then stops
+for that package:
+
+```text
+error: requests changed since venv-patcher patched it, for example by a pip upgrade; use --force -p requests to start again from the installed files
+```
+
+See [Upgrade a patched package](../guides/upgrade.md).
+
 ## A package that is not installed
 
 By default `apply` stops at the first package it can not import. It does
@@ -83,7 +95,8 @@ still `1`, because the entry failed.
 venv-patcher apply -f patches.yml --force -p requests
 ```
 
-1. Reset `requests` to its initial commit, and empty its patch list.
+1. Reset `requests` to its initial commit, and empty its patch list. If
+   pip changed it, drop its git history instead, and keep the files.
 2. Apply the file as usual.
 
 > [!WARNING]
