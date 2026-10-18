@@ -67,6 +67,7 @@ flowchart TD
 | `reset_package` | `git reset --hard` and `git clean` |
 | `load_patch_entries` | reads and checks a patches file |
 | `sha256_of` | the hash of a patch file |
+| `git_date` | adds the time 00:00:00 UTC to a date alone, which git refuses |
 
 ## Key decisions
 

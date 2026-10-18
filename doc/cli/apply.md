@@ -91,6 +91,26 @@ venv-patcher apply -f patches.yml --force -p requests
 
 See [Work on a patch](../guides/iterate.md).
 
+## When a patch fails
+
+If the apply command fails, `apply` shows what it ran, where, and what git
+said:
+
+```text
+error: failed to apply patch
+  command:     git am
+  package:     idna
+  patch:       patches/idna/0002-other.patch
+  package-dir: /home/me/demo/.venv/lib/python3.12/site-packages/idna
+  stderr:
+    error: patch failed: package_data.py:1
+    error: package_data.py: patch does not apply
+    hint: Use 'git am --show-current-patch=diff' to see the failed patch
+```
+
+The result is recorded as failed. `apply` goes on with the next entry, and
+exits with `1` at the end.
+
 ## Notes
 
 - A missing or broken patches file is an error. `apply` then goes on with
