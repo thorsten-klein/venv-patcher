@@ -29,15 +29,20 @@ venv-patcher list
 ```text
 idna (.venv/lib/python3.12/site-packages/idna)
   initial commit: 0918fb5d
-  [OK] patches/idna/0001-Mark-idna-as-patched.patch  (from /home/me/demo/patches.yml, 2026-10-18T09:37:20+00:00)
-  [FAIL] patches/idna/0002-other.patch  (from /home/me/demo/patches.yml, 2026-10-18T09:40:02+00:00)
-        error: patch failed: core.py:12
+  [OK] patches/idna/0001-Mark-idna-as-patched.patch  (from /home/me/demo/patches.yml, 2026-10-18T09:37:20.615286+00:00)
+  [FAIL] patches/idna/0002-other.patch  (from /home/me/demo/patches.yml, 2026-10-18T09:40:02.294112+00:00)
+        error: error: patch failed: package_data.py:1
+error: package_data.py: patch does not apply
+hint: Use 'git am --show-current-patch=diff' to see the failed patch
 ```
+
+The time is in UTC. The error is the output of the apply command, as it
+was. Only its first line is indented.
 
 | Marker | Meaning |
 |---|---|
 | `[OK]` | the patch is applied |
-| `[FAIL]` | the patch failed. The next line has the error |
+| `[FAIL]` | the patch failed. The error follows below it |
 
 A package that was reset shows `(no patches applied)`.
 

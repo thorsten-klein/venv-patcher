@@ -86,7 +86,7 @@ venv-patcher list
 ```text
 idna (.../site-packages/idna)
   initial commit: 0918fb5d
-  [OK] patches/idna/0001-Mark-idna-as-patched.patch  (from .../demo/patches.yml, 2026-10-18T09:37:20+00:00)
+  [OK] patches/idna/0001-Mark-idna-as-patched.patch  (from .../demo/patches.yml, 2026-10-18T09:37:20.615286+00:00)
 ```
 
 The package folder is now a git repository. Look inside:
@@ -99,6 +99,9 @@ git -C "$PKG" log --oneline
 7bb8978 Mark idna as patched
 0918fb5 initial
 ```
+
+The initial commit is the same everywhere. The patch commit differs:
+`git am` keeps the date of your patch.
 
 ## 6. Apply again
 
