@@ -1,5 +1,7 @@
 # venv-patcher
 
+<img src="https://raw.githubusercontent.com/thorsten-klein/venv-patcher/main/doc/_static/logo.svg" alt="logo" width="500"/>
+
 > Apply and track patches to packages installed in a Python virtual environment.
 
 [![Run Tests](https://github.com/thorsten-klein/venv-patcher/actions/workflows/test.yml/badge.svg)](https://github.com/thorsten-klein/venv-patcher/actions/workflows/test.yml)

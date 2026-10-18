@@ -1,5 +1,7 @@
 # venv-patcher
 
+<img src="https://raw.githubusercontent.com/thorsten-klein/venv-patcher/main/doc/_static/logo.svg" alt="venv-patcher logo" width="500"/>
+
 Patch the packages in your Python virtual environment. See what you
 patched. Undo it at any time.
 
