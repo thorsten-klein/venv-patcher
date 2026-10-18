@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import shutil
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -11,7 +12,6 @@ from venv_patcher.core import (
     DEFAULT_APPLY_COMMAND,
     PyPatcherError,
     apply_patch_file,
-    drop_git_tracking,
     ensure_git_initialized,
     ensure_running_in_venv,
     git_date,
@@ -22,11 +22,6 @@ from venv_patcher.core import (
     sha256_of,
 )
 from venv_patcher.manifest import get_package_record, load_manifest, save_manifest
-
-
-def now_iso() -> str:
-    """Return the current UTC time as an ISO 8601 string."""
-    return datetime.now(timezone.utc).isoformat()
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -128,58 +123,11 @@ def cmd_apply(
         exit_code = _reset_packages(manifest, package_filter) or exit_code
 
     try:
-        exit_code = _apply_all_files(manifest, files, package_filter, skip_missing) or exit_code
+        for file in files:
+            exit_code = _apply_from_file(manifest, file, package_filter, skip_missing) or exit_code
     except _PackageNotFound:
         return 1
 
-    return exit_code
-
-
-def _apply_all_files(
-    manifest: dict,
-    files: list[str],
-    package_filter: set[str] | None,
-    skip_missing: bool,
-) -> int:
-    exit_code = 0
-    for file in files:
-        exit_code = _apply_from_file(manifest, file, package_filter, skip_missing) or exit_code
-    return exit_code
-
-
-def _resolve_patches_file(file: str) -> Path | None:
-    patches_path = Path(file).resolve()
-    if not patches_path.is_file():
-        print(f"error: patch file not found: {file}", file=sys.stderr)
-        return None
-    return patches_path
-
-
-def _load_entries_or_none(patches_path: Path) -> list[dict] | None:
-    try:
-        return load_patch_entries(patches_path)
-    except PyPatcherError as e:
-        print(f"error: {e}", file=sys.stderr)
-        return None
-
-
-def _iter_matching_entries(entries: list[dict], package_filter: set[str] | None):
-    for patch_info in entries:
-        if package_filter is None or patch_info["package"] in package_filter:
-            yield patch_info
-
-
-def _apply_matching_entries(
-    manifest: dict,
-    patches_path: Path,
-    entries: list[dict],
-    package_filter: set[str] | None,
-    skip_missing: bool,
-) -> int:
-    exit_code = 0
-    for patch_info in _iter_matching_entries(entries, package_filter):
-        if not _apply_one(manifest, patches_path, patch_info, skip_missing):
-            exit_code = 1
     return exit_code
 
 
@@ -195,25 +143,31 @@ def _apply_from_file(
     (or the file itself) failed. Lets _PackageNotFound propagate so cmd_apply
     can abort immediately, as required when skip_missing is False.
     """
-    patches_path = _resolve_patches_file(file)
-    if patches_path is None:
+    patches_path = Path(file).resolve()
+    if not patches_path.is_file():
+        print(f"error: patch file not found: {file}", file=sys.stderr)
         return 1
 
-    entries = _load_entries_or_none(patches_path)
-    if entries is None:
+    try:
+        entries = load_patch_entries(patches_path)
+    except PyPatcherError as e:
+        print(f"error: {e}", file=sys.stderr)
         return 1
 
-    return _apply_matching_entries(manifest, patches_path, entries, package_filter, skip_missing)
+    exit_code = 0
+    for patch_info in entries:
+        if package_filter is not None and patch_info["package"] not in package_filter:
+            continue
+        if not _apply_one(manifest, patches_path, patch_info, skip_missing):
+            exit_code = 1
+    return exit_code
 
 
-def _make_patch_entry(patches_path: Path, rel_path: str, patch_file: Path, apply_command: str) -> dict:
-    return {
-        "source_file": str(patches_path),
-        "path": rel_path,
-        "resolved_path": str(patch_file),
-        "apply_command": apply_command,
-        "applied_at": now_iso(),
-    }
+def _apply_one(manifest: dict, patches_path: Path, patch_info: dict, skip_missing: bool) -> bool:
+    """Apply one entry. An entry without a path only sets up git."""
+    if "path" not in patch_info:
+        return _track_only(manifest, patch_info["package"], skip_missing)
+    return _apply_patch_entry(manifest, patches_path, patch_info, skip_missing)
 
 
 def _record_failure(manifest: dict, pkg_record: dict, entry: dict, message: str) -> bool:
@@ -223,17 +177,6 @@ def _record_failure(manifest: dict, pkg_record: dict, entry: dict, message: str)
     save_manifest(manifest)
     print(f"error: {message}", file=sys.stderr)
     return False
-
-
-def _find_existing_entry(pkg_record: dict, patch_file: Path) -> dict | None:
-    return next(
-        (
-            p
-            for p in pkg_record["patches"]
-            if p.get("status") == "applied" and p.get("resolved_path") == str(patch_file)
-        ),
-        None,
-    )
 
 
 def _handle_already_applied(
@@ -307,13 +250,6 @@ def _start_tracking(manifest: dict, pkg_record: dict, package: str, package_dir:
     return None
 
 
-def _ensure_git_tracking(manifest: dict, pkg_record: dict, entry: dict, package: str, package_dir: Path) -> bool:
-    error = _start_tracking(manifest, pkg_record, package, package_dir)
-    if error is not None:
-        return _record_failure(manifest, pkg_record, entry, error)
-    return True
-
-
 def _track_only(manifest: dict, package: str, skip_missing: bool) -> bool:
     """Set up git tracking for a package that is listed without a patch.
 
@@ -353,7 +289,9 @@ def _ensure_tracked_package_dir(
     if package_dir is None:
         return None
 
-    if not _ensure_git_tracking(manifest, pkg_record, entry, package, package_dir):
+    error = _start_tracking(manifest, pkg_record, package, package_dir)
+    if error is not None:
+        _record_failure(manifest, pkg_record, entry, error)
         return None
 
     return package_dir
@@ -387,40 +325,6 @@ def _verify_patch_sha(
     return actual_sha
 
 
-def _resolve_patch_file(patches_path: Path, rel_path: str) -> Path:
-    patch_file = Path(rel_path)
-    if not patch_file.is_absolute():
-        patch_file = patches_path.parent / patch_file
-    return patch_file.resolve()
-
-
-def _record_apply_result(entry: dict, ok: bool, actual_sha: str, stderr: str) -> None:
-    entry["status"] = "applied" if ok else "failed"
-    if ok:
-        entry["patch_sha256"] = actual_sha
-    else:
-        entry["error"] = stderr
-
-
-def _report_apply_result(
-    ok: bool, rel_path: str, package: str, package_dir: Path, apply_command: str, stderr: str
-) -> None:
-    if ok:
-        print(f"applied {rel_path} to {package}")
-        return
-
-    indented_error = "\n".join(f"    {line}" for line in stderr.splitlines()) or "    (no output)"
-    print(
-        "error: failed to apply patch\n"
-        f"  command:     {apply_command}\n"
-        f"  package:     {package}\n"
-        f"  patch:       {rel_path}\n"
-        f"  package-dir: {package_dir}\n"
-        f"  stderr:\n{indented_error}",
-        file=sys.stderr,
-    )
-
-
 def _finalize_apply(
     manifest: dict,
     pkg_record: dict,
@@ -440,24 +344,29 @@ def _finalize_apply(
     commit_message = patch_info.get("comments") or f"venv-patcher: apply {patch_file.name}"
     ok, stderr = apply_patch_file(package_dir, patch_file, apply_command, author, email, date_str, commit_message)
 
-    _record_apply_result(entry, ok, actual_sha, stderr)
+    entry["status"] = "applied" if ok else "failed"
+    if ok:
+        entry["patch_sha256"] = actual_sha
+    else:
+        entry["error"] = stderr
     pkg_record["patches"].append(entry)
     save_manifest(manifest)
-    _report_apply_result(ok, rel_path, package, package_dir, apply_command, stderr)
 
-    return ok
+    if ok:
+        print(f"applied {rel_path} to {package}")
+        return True
 
-
-def _apply_one(
-    manifest: dict,
-    patches_path: Path,
-    patch_info: dict,
-    skip_missing: bool = False,
-) -> bool:
-    """Apply a single patch entry, recording the outcome in manifest."""
-    if "path" not in patch_info:
-        return _track_only(manifest, patch_info["package"], skip_missing)
-    return _apply_patch_entry(manifest, patches_path, patch_info, skip_missing)
+    indented_error = "\n".join(f"    {line}" for line in stderr.splitlines()) or "    (no output)"
+    print(
+        "error: failed to apply patch\n"
+        f"  command:     {apply_command}\n"
+        f"  package:     {package}\n"
+        f"  patch:       {rel_path}\n"
+        f"  package-dir: {package_dir}\n"
+        f"  stderr:\n{indented_error}",
+        file=sys.stderr,
+    )
+    return False
 
 
 def _apply_patch_entry(manifest: dict, patches_path: Path, patch_info: dict, skip_missing: bool) -> bool:
@@ -467,10 +376,17 @@ def _apply_patch_entry(manifest: dict, patches_path: Path, patch_info: dict, ski
     apply_command = patch_info.get("apply-command", DEFAULT_APPLY_COMMAND)
     date = patch_info.get("date")
     date_str = git_date(date) if date is not None else None
-    patch_file = _resolve_patch_file(patches_path, rel_path)
+    # a relative path is relative to the patches file
+    patch_file = (patches_path.parent / rel_path).resolve()
 
     pkg_record = get_package_record(manifest, package)
-    entry = _make_patch_entry(patches_path, rel_path, patch_file, apply_command)
+    entry = {
+        "source_file": str(patches_path),
+        "path": rel_path,
+        "resolved_path": str(patch_file),
+        "apply_command": apply_command,
+        "applied_at": datetime.now(timezone.utc).isoformat(),
+    }
 
     if _changed_outside(pkg_record):
         return _record_failure(
@@ -481,7 +397,14 @@ def _apply_patch_entry(manifest: dict, patches_path: Path, patch_info: dict, ski
             f"use --force -p {package} to start again from the installed files",
         )
 
-    existing_entry = _find_existing_entry(pkg_record, patch_file)
+    existing_entry = next(
+        (
+            p
+            for p in pkg_record["patches"]
+            if p.get("status") == "applied" and p.get("resolved_path") == str(patch_file)
+        ),
+        None,
+    )
     if existing_entry is not None:
         return _handle_already_applied(manifest, pkg_record, entry, existing_entry, patch_file, rel_path, package)
 
@@ -602,18 +525,12 @@ def _start_over(manifest: dict, package: str, record: dict, package_dir: Path) -
     installed files, and drop the git history and the patch list instead.
     The next apply starts again with a new initial commit.
     """
-    drop_git_tracking(package_dir)
+    shutil.rmtree(package_dir / ".git")
     record["initial_commit"] = None
     record["patches"] = []
     save_manifest(manifest)
     print(f"warning: {package} changed since venv-patcher patched it; kept the installed files", file=sys.stderr)
     return True
-
-
-def _iter_filtered_packages(manifest: dict, package_filter: set[str] | None):
-    for package, record in manifest.get("packages", {}).items():
-        if package_filter is None or package in package_filter:
-            yield package, record
 
 
 def _reset_packages(manifest: dict, package_filter: set[str] | None) -> int:
@@ -625,7 +542,9 @@ def _reset_packages(manifest: dict, package_filter: set[str] | None) -> int:
     package failed to reset.
     """
     exit_code = 0
-    for package, record in _iter_filtered_packages(manifest, package_filter):
+    for package, record in manifest.get("packages", {}).items():
+        if package_filter is not None and package not in package_filter:
+            continue
         if _reset_one_package(manifest, package, record) is False:
             exit_code = 1
 

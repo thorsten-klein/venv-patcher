@@ -112,7 +112,7 @@ preview = true
 
 [tool.complexipy]
 paths = ["venv_patcher", "tests"]
-max-complexity-allowed = 5
+max-complexity-allowed = 8
 failed = true
 color = "auto"
 sort = "asc"

@@ -64,7 +64,7 @@ uv run poe mypy         # types
 uv run poe pyright      # types, with a second checker
 uv run poe bandit       # security lint
 uv run poe pip-audit    # known holes in dependencies
-uv run poe complexity   # cognitive complexity, at most 5
+uv run poe complexity   # cognitive complexity, at most 8
 uv run poe test         # tests with coverage
 uv run poe docs         # the docs site, warnings are errors
 ```

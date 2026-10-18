@@ -7,7 +7,6 @@ import importlib
 import os
 import re
 import shlex
-import shutil
 import subprocess
 import sys
 import sysconfig
@@ -115,19 +114,13 @@ def _run_git(args: list[str], cwd: Path, env: dict | None = None) -> subprocess.
 _GITIGNORE_LINES = ["__pycache__/", "*.pyc", "*.pyo"]
 
 
-def _read_existing_gitignore_lines(gitignore: Path) -> list[str]:
-    if not gitignore.is_file():
-        return []
-    return gitignore.read_text().splitlines()
-
-
 def _ensure_gitignore(package_dir: Path) -> None:
     # Importing the package (to resolve its directory) can make the
     # interpreter (re)write __pycache__/*.pyc with a fresh mtime/hash.
     # Those aren't part of the patch and would otherwise make the resulting
     # commit non-deterministic across runs, so keep them out of tracking.
     gitignore = package_dir / ".gitignore"
-    existing = _read_existing_gitignore_lines(gitignore)
+    existing = gitignore.read_text().splitlines() if gitignore.is_file() else []
     missing = [line for line in _GITIGNORE_LINES if line not in existing]
     if not missing:
         return
@@ -214,33 +207,25 @@ def apply_patch_file(
     )
     env = _git_env(identity)
 
-    ok, stderr = _run_apply_command(package_dir, patch_file, apply_command, env)
-    if ok:
-        ok, stderr = _commit_pending_changes(package_dir, commit_message, env)
-    if not ok:
-        _restore_last_commit(package_dir)
-    return ok, stderr
-
-
-def _run_apply_command(package_dir: Path, patch_file: Path, apply_command: str, env: dict) -> tuple[bool, str]:
     cmd = [*shlex.split(apply_command), str(patch_file)]
     proc = subprocess.run(cmd, cwd=package_dir, capture_output=True, text=True, env=env)
     if proc.returncode != 0:
-        return False, proc.stderr.strip()
-    return True, ""
+        ok, stderr = False, proc.stderr.strip()
+    else:
+        ok, stderr = _commit_pending_changes(package_dir, commit_message, env)
+
+    if not ok:
+        # undo what the failed patch left behind, so the package is as before
+        _abort_am(package_dir)
+        _run_git(["reset", "-q", "--hard", "HEAD"], cwd=package_dir)
+        _run_git(["clean", "-q", "-fd"], cwd=package_dir)
+    return ok, stderr
 
 
 def _abort_am(package_dir: Path) -> None:
     """End a "git am" that stopped half way. Else every later "git am" there fails."""
     if (package_dir / ".git" / "rebase-apply").is_dir():
         _run_git(["am", "--abort"], cwd=package_dir)
-
-
-def _restore_last_commit(package_dir: Path) -> None:
-    """Undo what a failed patch left behind, so the package is as before."""
-    _abort_am(package_dir)
-    _run_git(["reset", "-q", "--hard", "HEAD"], cwd=package_dir)
-    _run_git(["clean", "-q", "-fd"], cwd=package_dir)
 
 
 def _commit_pending_changes(package_dir: Path, commit_message: str, env: dict) -> tuple[bool, str]:
@@ -298,47 +283,16 @@ def has_outside_changes(package_dir: Path) -> bool:
     return bool(proc.stdout.strip())
 
 
-def drop_git_tracking(package_dir: Path) -> None:
-    """Remove the git repository of package_dir. Its files stay as they are."""
-    shutil.rmtree(package_dir / ".git")
-
-
-def _check_version(data: dict, patches_path: Path) -> None:
-    if "version" not in data:
-        raise PyPatcherError(f"{patches_path}: missing required top-level field: version")
-    if data["version"] != SUPPORTED_VERSION:
-        raise PyPatcherError(f"{patches_path}: unsupported version {data['version']!r} (expected {SUPPORTED_VERSION})")
-
-
-def _check_patch_entry_fields(i: int, entry: dict, patches_path: Path) -> None:
-    # "path" may be left out: then the package only gets git tracking
-    if "package" not in entry:
-        raise PyPatcherError(f"{patches_path}: patch #{i + 1} is missing required field(s): package")
-
-
-def _check_patch_entries(patches: list[dict], patches_path: Path) -> None:
-    for i, entry in enumerate(patches):
-        _check_patch_entry_fields(i, entry, patches_path)
-
-
-def _load_toml(patches_path: Path) -> dict:
-    if tomllib is None:  # pragma: no cover -- only 3.9 and 3.10 run this
-        raise PyPatcherError(f"{patches_path} is TOML, which needs Python 3.11 or newer")
-    with patches_path.open("rb") as f:  # pragma: no cover -- 3.9 and 3.10 never get here
-        return tomllib.load(f)
-
-
-def _load_yaml(patches_path: Path) -> dict:
-    with patches_path.open() as f:
-        return yaml.safe_load(f) or {}
-
-
 def _load_patches_file(patches_path: Path) -> dict:
     """Read a patches file. A .toml file is TOML, any other file is YAML."""
     try:
-        if patches_path.suffix == ".toml":
-            return _load_toml(patches_path)
-        return _load_yaml(patches_path)
+        if patches_path.suffix != ".toml":
+            with patches_path.open() as f:
+                return yaml.safe_load(f) or {}
+        if tomllib is None:  # pragma: no cover -- only 3.9 and 3.10 run this
+            raise PyPatcherError(f"{patches_path} is TOML, which needs Python 3.11 or newer")
+        with patches_path.open("rb") as f:  # pragma: no cover -- 3.9 and 3.10 never get here
+            return tomllib.load(f)
     except (yaml.YAMLError, ValueError) as e:
         # tomllib.TOMLDecodeError is a ValueError
         raise PyPatcherError(f"cannot read {patches_path}: {e}") from e
@@ -348,7 +302,14 @@ def load_patch_entries(patches_path: Path) -> list[dict]:
     """Load and validate the patch entries described by patches_path."""
     data = _load_patches_file(patches_path)
 
-    _check_version(data, patches_path)
+    if "version" not in data:
+        raise PyPatcherError(f"{patches_path}: missing required top-level field: version")
+    if data["version"] != SUPPORTED_VERSION:
+        raise PyPatcherError(f"{patches_path}: unsupported version {data['version']!r} (expected {SUPPORTED_VERSION})")
+
     patches = data.get("patches") or []
-    _check_patch_entries(patches, patches_path)
+    for i, entry in enumerate(patches):
+        # "path" may be left out: then the package only gets git tracking
+        if "package" not in entry:
+            raise PyPatcherError(f"{patches_path}: patch #{i + 1} is missing required field(s): package")
     return patches
