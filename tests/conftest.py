@@ -4,6 +4,7 @@ import sys
 from pathlib import Path
 
 import pytest
+import yaml
 
 import venv_patcher.core as core
 
@@ -105,6 +106,26 @@ def dump_toml(data: dict) -> str:
     for key, value in data.items():
         lines.extend(_toml_lines_for(key, value))
     return "\n".join(lines) + "\n"
+
+
+needs_tomllib = pytest.mark.skipif(sys.version_info < (3, 11), reason="tomllib needs Python 3.11")
+only_without_tomllib = pytest.mark.skipif(sys.version_info >= (3, 11), reason="Python 3.11+ has tomllib")
+
+
+@pytest.fixture(params=["yaml", pytest.param("toml", marks=needs_tomllib)])
+def write_patches(request, tmp_path):
+    """Write a patches file, once as YAML and once as TOML (TOML only on 3.11+)."""
+
+    def _write(data: dict, name: str = "patches") -> Path:
+        if request.param == "toml":
+            path = tmp_path / f"{name}.toml"
+            path.write_text(dump_toml(data))
+        else:
+            path = tmp_path / f"{name}.yml"
+            path.write_text(yaml.safe_dump(data))
+        return path
+
+    return _write
 
 
 def make_plain_diff(old_line: str, new_line: str) -> str:

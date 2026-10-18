@@ -19,13 +19,13 @@ Or straight from git:
 pip install git+https://github.com/thorsten-klein/venv-patcher.git
 ```
 
-`venv-patcher` requires Python 3.11+ and refuses to run outside of an active
+`venv-patcher` requires Python 3.9+ and refuses to run outside of an active
 virtual environment.
 
 ## Usage
 
 ```
-venv-patcher apply -f patches.toml [-f <file> ...] [-p <package> ...] [--skip-missing] [--force]
+venv-patcher apply -f patches.yml [-f <file> ...] [-p <package> ...] [--skip-missing] [--force]
 venv-patcher list
 venv-patcher reset [-p <package> ...]
 ```
@@ -33,7 +33,7 @@ venv-patcher reset [-p <package> ...]
 ### `apply`
 
 Use `-p`/`--package` one or more times to only apply the patches that target
-those packages, skipping every other entry in the given toml file(s).
+those packages, skipping every other entry in the given patches file(s).
 
 For each patch entry, on first use for a package, `venv-patcher`:
 
@@ -43,7 +43,7 @@ For each patch entry, on first use for a package, `venv-patcher`:
 
 It then applies the patch (`git am` by default) on top. The result is
 always wrapped in a commit with a pinned author/committer identity and date
-(from the toml, or a fixed fallback), so re-applying the same patch to the
+(from the patches file, or a fixed fallback), so re-applying the same patch to the
 same starting state always produces the exact same commit hash.
 
 Patch results (applied or failed) are recorded in the manifest immediately,
@@ -57,18 +57,18 @@ patch that was already applied:
   doesn't have a `sha256sum` pinned down yet) - `venv-patcher` won't silently
   apply a different patch on top of what's already there.
 
-By default, if a package listed in the toml can't be imported, `venv-patcher`
+By default, if a package listed in the patches file can't be imported, `venv-patcher`
 records the failure and aborts immediately without processing any further
 patches. Pass `--skip-missing` to instead skip just that patch and continue
 with the rest.
 
 Pass `--force` to start from a clean slate before applying: `venv-patcher`
 hard-resets the affected packages back to their recorded initial commit and
-clears their patch history first, then applies the toml file(s) as usual.
+clears their patch history first, then applies the patches file(s) as usual.
 This is meant for iterating on a patch that doesn't have a `sha256sum` pinned
 down yet. Combined with `-p`, only the given package(s) are reset.
 Without `-p`, *every* package tracked in the manifest is reset - including ones
-not mentioned in the toml file(s) you're currently applying with `-f`.
+not mentioned in the patches file(s) you're currently applying with `-f`.
 
 ### `list`
 
@@ -81,27 +81,39 @@ Hard-resets every patched package back to its recorded initial commit and
 clears the manifest's patch history for it. Use `-p`/`--package` one or more
 times to only reset specific packages.
 
-## TOML format
+## Patches file format
+
+A patches file is YAML or TOML. A file ending in `.toml` is TOML. Any
+other file is YAML. TOML needs Python 3.11 or newer.
+
+```yaml
+version: 1                               # required, currently must be 1
+patches:
+  - path: patches/0001-fix.patch         # relative to this file, or absolute
+    package: requests                    # importable package name
+    sha256sum: <optional sha256 of the patch file>
+    apply-command: git am                # default; use "git apply" for a plain diff
+    author: Jane Doe                     # used for the commit identity
+    email: jane@example.com
+    date: 2024-01-01T00:00:00+00:00
+    comments: commit message for the patch commit
+```
+
+The same in TOML:
 
 ```toml
-version = 1                              # required, currently must be 1
+version = 1
 
 [[patches]]
-path = "patches/0001-fix.patch"          # relative to this toml file, or absolute
-package = "requests"                     # importable package name
+path = "patches/0001-fix.patch"
+package = "requests"
 sha256sum = "<optional sha256 of the patch file>"
-apply-command = "git am"                 # default; use "git apply" for a plain diff
-author = "Jane Doe"                      # used for the commit identity
+apply-command = "git am"
+author = "Jane Doe"
 email = "jane@example.com"
 date = "2024-01-01T00:00:00+00:00"
 comments = "commit message for the patch commit"
 ```
 
-See [`example.toml`](example.toml) for a full annotated example.
-
-## Development
-
-```
-uv sync --group dev
-uv run poe all      # pre-commit, lint, format, mypy, pyright, bandit, pip-audit, complexity, test
-```
+See [`example.yml`](example.yml) and [`example.toml`](example.toml) for full
+annotated examples.
