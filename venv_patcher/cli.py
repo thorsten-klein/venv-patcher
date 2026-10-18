@@ -13,6 +13,7 @@ from venv_patcher.core import (
     apply_patch_file,
     ensure_git_initialized,
     ensure_running_in_venv,
+    git_date,
     load_patch_entries,
     reset_package,
     resolve_package_dir,
@@ -427,7 +428,7 @@ def _apply_one(
     rel_path = patch_info["path"]
     apply_command = patch_info.get("apply-command", DEFAULT_APPLY_COMMAND)
     date = patch_info.get("date")
-    date_str = str(date) if date is not None else None
+    date_str = git_date(date) if date is not None else None
     patch_file = _resolve_patch_file(patches_path, rel_path)
 
     pkg_record = get_package_record(manifest, package)

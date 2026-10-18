@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import importlib
 import os
+import re
 import shlex
 import subprocess
 import sys
@@ -157,6 +158,21 @@ def ensure_git_initialized(package_dir: Path) -> str:
     if proc.returncode != 0:
         raise PyPatcherError(f"git rev-parse failed in {package_dir}: {proc.stderr.strip()}")
     return proc.stdout.strip()
+
+
+_DATE_ONLY = re.compile(r"\d{4}-\d{2}-\d{2}")
+
+
+def git_date(value: object) -> str:
+    """Return value as a date git accepts.
+
+    git refuses a date alone, like 2020-04-20. So a date alone gets the
+    time 00:00:00 UTC.
+    """
+    text = str(value).strip()
+    if _DATE_ONLY.fullmatch(text):
+        return f"{text}T00:00:00+00:00"
+    return text
 
 
 def _identity_env(name: str, email: str, date: str) -> dict:
