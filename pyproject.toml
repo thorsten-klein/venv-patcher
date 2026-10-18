@@ -33,11 +33,21 @@ venv-patcher = "venv_patcher.cli:main"
 
 [project.urls]
 Homepage = "https://github.com/thorsten-klein/venv-patcher"
-Documentation = "https://github.com/thorsten-klein/venv-patcher#readme"
+Documentation = "https://thorsten-klein.github.io/venv-patcher/"
 Repository = "https://github.com/thorsten-klein/venv-patcher"
 Issues = "https://github.com/thorsten-klein/venv-patcher/issues"
 
 [dependency-groups]
+# The docs tools need Python 3.10+, and the docs use 3.11+ for TOML.
+# So older Pythons leave them out.
+docs = [
+    "myst-parser>=4.0.0,<5; python_version >= '3.11'",
+    "Sphinx>=8.0.0,<9; python_version >= '3.11'",
+    "sphinx-copybutton>=0.5.2,<1; python_version >= '3.11'",
+    "sphinx-markdown-builder>=0.6.8,<1; python_version >= '3.11'",
+    "sphinx-rtd-theme>=3.0.0,<4; python_version >= '3.11'",
+    "sphinxcontrib-mermaid>=1.0.0,<2; python_version >= '3.11'",
+]
 lint = [
     "bandit>=1.8.0",
     "complexipy>=7.0.0",
@@ -56,6 +66,7 @@ test = [
 ]
 dev = [
     "poethepoet~=0.37",
+    {include-group = "docs"},
     {include-group = "lint"},
     {include-group = "test"},
 ]
@@ -127,7 +138,7 @@ exclude_dirs = ["tests"]
 skips = ["B404", "B603", "B607"]
 
 [tool.poe.tasks]
-all = ["pre-commit", "lint", "format", "mypy", "pyright", "bandit", "pip-audit", "complexity", "test"]
+all = ["pre-commit", "lint", "format", "mypy", "pyright", "bandit", "pip-audit", "complexity", "test", "docs"]
 "pre-commit" = "pre-commit run --all-files --show-diff-on-failure"
 format = "ruff format ."
 lint = "ruff check ."
@@ -137,6 +148,17 @@ bandit = "bandit -c pyproject.toml -r venv_patcher"
 "pip-audit" = "pip-audit --skip-editable"
 complexity = "complexipy"
 test = {cmd = "pytest -v -n=auto -W error --cov-config=pyproject.toml --cov=venv_patcher --junitxml=junit.xml -o junit_family=legacy --cov-report=term-missing --cov-report=html --cov-report=xml", env = {PYTHONIOENCODING = "utf-8"}}
+# The docs site, built twice: HTML for people, Markdown for AI tools. The
+# Markdown copy goes under html/markdown/, so one publish step carries both.
+# -W --keep-going: every warning fails the build, and all of them are shown.
+docs = {shell = """
+set -e
+sphinx-build -b html -W --keep-going doc doc/_build/html
+sphinx-build -b markdown -W --keep-going doc doc/_build/markdown
+rm -rf doc/_build/html/.doctrees doc/_build/markdown/.doctrees doc/_build/html/markdown
+cp -r doc/_build/markdown doc/_build/html/markdown
+"""}
+"docs-clean" = "rm -rf doc/_build"
 
 clean = "rm -rf dist/ build/ *.egg-info venv_patcher.egg-info"
 build = ["clean", {cmd = "uv build"}]
