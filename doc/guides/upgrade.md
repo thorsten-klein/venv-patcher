@@ -1,39 +1,68 @@
 # Upgrade a patched package
 
-venv-patcher does not notice when you upgrade, downgrade or reinstall a
-patched package with pip. Plan for it.
+You upgraded, downgraded or reinstalled a patched package with pip. pip
+put its own files back, so your patches are gone. venv-patcher notices
+this.
 
-## The safe way: a new venv
+## How it notices
+
+venv-patcher commits every change it makes. So when the files of a package
+differ from its last commit, someone else changed them. Most often that is
+pip.
+
+## Apply the patches again
+
+```bash
+pip install -U requests
+venv-patcher apply --force -p requests -f patches.yml
+```
+
+`--force -p requests` starts again from the installed files:
+
+1. It drops the old git history of `requests`. The files stay as pip
+   installed them.
+2. It makes a new initial commit from them.
+3. It applies the patches of `requests` on top.
+
+If a patch does not fit the new version, `apply` fails for it. Make a new
+patch for that version. See [Write a patch](write-a-patch.md).
+
+## Without `--force`
+
+A plain `apply` stops for that package:
+
+```text
+error: requests changed since venv-patcher patched it, for example by a pip upgrade; use --force -p requests to start again from the installed files
+```
+
+It does not skip the patches as "already applied". They are not, any more.
+
+## Reset
+
+`reset` on a changed package keeps the installed files. It drops the git
+history and the patch list:
+
+```text
+warning: requests changed since venv-patcher patched it; kept the installed files
+```
+
+The next `apply` starts again with a new initial commit.
+
+> [!NOTE]
+> This also happens when you change files in the package folder by hand
+> and do not commit. `reset` only undoes what venv-patcher did.
+
+## A new venv works too
 
 ```bash
 rm -rf .venv
 python -m venv .venv
 source .venv/bin/activate
-pip install -r requirements.txt     # with the new version
+pip install -r requirements.txt
 venv-patcher apply -f patches.yml
 ```
 
-If a patch does not fit the new version, `apply` fails for it. Make a new
-patch for that version. See [Write a patch](write-a-patch.md).
-
-## Why not upgrade in place?
-
-pip only knows the files it installed. It does not know about `.git`,
-`.gitignore` or the manifest. After `pip install -U requests`:
-
-- The package folder has the new files, but the old `.git`. The initial
-  commit is still the one of the **old** version.
-- The manifest still says the patches are applied. So `apply` skips them,
-  but the new files have no patches.
-- `reset` would go back to the initial commit. That puts the files of the
-  **old** version back, under the new version's metadata. The package is
-  then broken.
-
-> [!WARNING]
-> Never run `reset` or `apply --force` on a package you upgraded in
-> place. Make a new venv instead.
-
 ## Uninstall
 
-`pip uninstall` also leaves `.git` and `.gitignore` behind in the package
+`pip uninstall` leaves `.git` and `.gitignore` behind in the package
 folder. That does no harm. Delete the folder by hand if you like.

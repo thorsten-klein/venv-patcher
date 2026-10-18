@@ -42,27 +42,29 @@ For each entry of the patches file, in order:
 
 1. **Find the patch file.** A relative `path` is relative to the patches
    file.
-2. **Skip a repeat.** If the manifest says this patch file is already
+2. **Check for outside changes.** If the package files differ from its last
+   commit, pip or someone else changed them. Fail, and point to `--force`.
+3. **Skip a repeat.** If the manifest says this patch file is already
    applied, compare its hash:
    - the same: print a warning and skip it;
    - different: fail, and tell you to use `--force`.
-3. **Find the package folder.** Import the package and take its folder.
+4. **Find the package folder.** Import the package and take its folder.
    If that fails, record the error and stop, or go on with
    `--skip-missing`.
-4. **Make the initial commit**, the first time only:
+5. **Make the initial commit**, the first time only:
    - `git init`;
    - add `__pycache__/`, `*.pyc` and `*.pyo` to `.gitignore`;
    - `git add .` and commit as `initial`, with the pinned identity.
-5. **Check the patch file.** It must exist. If `sha256sum` is set, the hash
+6. **Check the patch file.** It must exist. If `sha256sum` is set, the hash
    must match.
-6. **Apply it.** Run the apply command with the patch file, in the package
+7. **Apply it.** Run the apply command with the patch file, in the package
    folder.
-7. **Commit it.** If the apply command left changes (like `git apply`
+8. **Commit it.** If the apply command left changes (like `git apply`
    does), commit them. `git am` already made its own commit.
 
-   If step 6 or 7 fails, the package goes back to its last commit. So a
+   If step 7 or 8 fails, the package goes back to its last commit. So a
    failed patch leaves nothing behind.
-8. **Record it** in the manifest: `applied` with the hash, or `failed` with
+9. **Record it** in the manifest: `applied` with the hash, or `failed` with
    the error.
 
 The manifest is saved after each step that changes it. So a failure is
@@ -70,7 +72,9 @@ recorded even if a later step crashes.
 
 ```mermaid
 flowchart TD
-    A[entry] --> B{already applied?}
+    A[entry] --> X{changed outside<br/>venv-patcher?}
+    X -- yes --> F0[fail: use --force]
+    X -- no --> B{already applied?}
     B -- yes, same hash --> S[warn and skip]
     B -- yes, other hash --> F1[fail: use --force]
     B -- no --> C{package importable?}
@@ -86,7 +90,7 @@ flowchart TD
     I --> R[record 'applied']
 ```
 
-An entry without `path` only gets steps 3 and 4: find the package folder,
+An entry without `path` only gets steps 4 and 5: find the package folder,
 and make the initial commit. That sets up git, so you can start a patch in
 the package folder.
 
@@ -118,6 +122,10 @@ patch commit.
 
 For each package in the manifest (or only those given with `-p`):
 
+If its files differ from the last commit (after a pip upgrade, say), a
+hard reset would put back old files. So `reset` keeps the files, drops the
+git history and empties the patch list. Otherwise:
+
 1. End a `git am` that stopped half way, if there is one.
 2. `git reset --hard <initial commit>`
 3. `git clean -fd`, to remove files a patch added.
@@ -142,12 +150,14 @@ stateDiagram-v2
     Patched --> Patched: more patches applied
     Patched --> Pristine: reset
     Pristine --> Pristine: reset
+    Patched --> Changed: pip upgrade
+    Changed --> Untracked: reset or apply --force
 ```
 
 ## What it does not do
 
 - It does not patch `.py` files that sit right in site-packages. Only
   package folders.
-- It does not notice when you upgrade a package. See
-  [Upgrade a patched package](../guides/upgrade.md).
+- It does not apply patches again by itself after a pip upgrade. It tells
+  you to. See [Upgrade a patched package](../guides/upgrade.md).
 - It does not touch your project's git repository.

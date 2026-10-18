@@ -61,5 +61,9 @@ git diff HEAD~1
 
 ## Upgrade a patched package
 
-Make a new venv. Then apply your patches again. See
-[Upgrade a patched package](../guides/upgrade.md).
+```bash
+pip install -U requests
+venv-patcher apply --force -p requests -f patches.yml
+```
+
+See [Upgrade a patched package](../guides/upgrade.md).

@@ -45,10 +45,18 @@ reset idna to initial state (0918fb5d)
 - A `-p` name that is not in the manifest does nothing.
 - With an empty manifest, `reset` prints `No patches to reset.`
 
-> [!WARNING]
-> Do not run `reset` after you upgraded a patched package. It would put
-> back the files of the old version. See
-> [Upgrade a patched package](../guides/upgrade.md).
+## A package that changed
+
+If the files differ from the last commit, someone else changed them, for
+example pip during an upgrade. Then a hard reset would put back old files.
+So `reset` keeps the installed files instead. It drops the git history and
+the patch list:
+
+```text
+warning: requests changed since venv-patcher patched it; kept the installed files
+```
+
+See [Upgrade a patched package](../guides/upgrade.md).
 
 ## See also
 

@@ -11,9 +11,11 @@ from venv_patcher.core import (
     DEFAULT_APPLY_COMMAND,
     PyPatcherError,
     apply_patch_file,
+    drop_git_tracking,
     ensure_git_initialized,
     ensure_running_in_venv,
     git_date,
+    has_outside_changes,
     load_patch_entries,
     reset_package,
     resolve_package_dir,
@@ -453,9 +455,14 @@ def _apply_one(
     skip_missing: bool = False,
 ) -> bool:
     """Apply a single patch entry, recording the outcome in manifest."""
-    package = patch_info["package"]
     if "path" not in patch_info:
-        return _track_only(manifest, package, skip_missing)
+        return _track_only(manifest, patch_info["package"], skip_missing)
+    return _apply_patch_entry(manifest, patches_path, patch_info, skip_missing)
+
+
+def _apply_patch_entry(manifest: dict, patches_path: Path, patch_info: dict, skip_missing: bool) -> bool:
+    """Apply an entry that names a patch file."""
+    package = patch_info["package"]
     rel_path = patch_info["path"]
     apply_command = patch_info.get("apply-command", DEFAULT_APPLY_COMMAND)
     date = patch_info.get("date")
@@ -464,6 +471,15 @@ def _apply_one(
 
     pkg_record = get_package_record(manifest, package)
     entry = _make_patch_entry(patches_path, rel_path, patch_file, apply_command)
+
+    if _changed_outside(pkg_record):
+        return _record_failure(
+            manifest,
+            pkg_record,
+            entry,
+            f"{package} changed since venv-patcher patched it, for example by a pip upgrade; "
+            f"use --force -p {package} to start again from the installed files",
+        )
 
     existing_entry = _find_existing_entry(pkg_record, patch_file)
     if existing_entry is not None:
@@ -490,6 +506,14 @@ def _apply_one(
         date_str,
         actual_sha,
     )
+
+
+def _changed_outside(record: dict) -> bool:
+    """Whether a tracked package changed without venv-patcher, e.g. by pip."""
+    location = record.get("location")
+    if not location or not record.get("initial_commit") or not Path(location).is_dir():
+        return False
+    return has_outside_changes(Path(location))
 
 
 def _print_patch_status(p: dict) -> None:
@@ -557,6 +581,9 @@ def _reset_one_package(manifest: dict, package: str, record: dict) -> bool | Non
         print(f"warning: {package} location no longer exists: {package_dir}", file=sys.stderr)
         return None
 
+    if has_outside_changes(package_dir):
+        return _start_over(manifest, package, record, package_dir)
+
     ok, stderr = reset_package(package_dir, initial_commit)
     if not ok:
         print(f"error: failed to reset {package}: {stderr}", file=sys.stderr)
@@ -565,6 +592,21 @@ def _reset_one_package(manifest: dict, package: str, record: dict) -> bool | Non
     record["patches"] = []
     save_manifest(manifest)
     print(f"reset {package} to initial state ({initial_commit[:8]})")
+    return True
+
+
+def _start_over(manifest: dict, package: str, record: dict, package_dir: Path) -> bool:
+    """Forget a package that changed without venv-patcher, e.g. by a pip upgrade.
+
+    A hard reset would put back the files of the old version. So keep the
+    installed files, and drop the git history and the patch list instead.
+    The next apply starts again with a new initial commit.
+    """
+    drop_git_tracking(package_dir)
+    record["initial_commit"] = None
+    record["patches"] = []
+    save_manifest(manifest)
+    print(f"warning: {package} changed since venv-patcher patched it; kept the installed files", file=sys.stderr)
     return True
 
 

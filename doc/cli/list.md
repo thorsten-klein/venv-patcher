@@ -55,8 +55,8 @@ No patches applied in this environment.
 ## Notes
 
 - Failed results stay in the list until the next `reset` of the package.
-- `list` shows what the manifest says. If you changed the package by hand,
-  or upgraded it, the list can be wrong. See
+- `list` shows what the manifest says. After a pip upgrade, the patches
+  are gone, but still listed until the next `apply` or `reset`. See
   [Upgrade a patched package](../guides/upgrade.md).
 - `list` always exits with `0`.
 

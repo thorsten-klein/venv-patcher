@@ -7,6 +7,7 @@ import importlib
 import os
 import re
 import shlex
+import shutil
 import subprocess
 import sys
 import sysconfig
@@ -285,6 +286,21 @@ def reset_package(package_dir: Path, initial_commit: str) -> tuple[bool, str]:
         return False, proc.stderr.strip()
 
     return True, ""
+
+
+def has_outside_changes(package_dir: Path) -> bool:
+    """Whether the files of package_dir differ from its last commit.
+
+    venv-patcher commits every change it makes. So a difference comes from
+    someone else, for example from pip after an upgrade or a reinstall.
+    """
+    proc = _run_git(["status", "--porcelain"], cwd=package_dir)
+    return bool(proc.stdout.strip())
+
+
+def drop_git_tracking(package_dir: Path) -> None:
+    """Remove the git repository of package_dir. Its files stay as they are."""
+    shutil.rmtree(package_dir / ".git")
 
 
 def _check_version(data: dict, patches_path: Path) -> None:
