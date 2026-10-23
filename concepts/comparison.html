@@ -1,0 +1,480 @@
+
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Compared to other ways &mdash; venv-patcher</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=9edc463e" />
+      <link rel="stylesheet" type="text/css" href="../_static/copybutton.css?v=76b2166b" />
+      <link rel="stylesheet" type="text/css" href="../_static/custom.css?v=30e7f4c3" />
+
+  
+    <link rel="shortcut icon" href="../_static/favicon.svg"/>
+    <link rel="canonical" href="https://thorsten-klein.github.io/venv-patcher/concepts/comparison.html" />
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=ff90a5cb"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
+      <script src="../_static/copybutton.js?v=f281be69"></script>
+      <script src="../_static/custom.js?v=05c7c2e1"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Overview and common options" href="../cli/index.html" />
+    <link rel="prev" title="How it works" href="how-it-works.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            venv-patcher
+              <img src="../_static/logo.svg" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+<div class="version"><a href="https://github.com/thorsten-klein/venv-patcher/tree/a236c1f44252fb99a086e42b0aeb5fdb2889d88b">0.2.0-4-ga236c1f</a>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Introduction</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../introduction/index.html">About venv-patcher</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../introduction/index.html#what-problem-does-it-solve">What problem does it solve?</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../introduction/index.html#how-it-works-in-short">How it works, in short</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../introduction/index.html#why-use-it">Why use it?</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../introduction/index.html#next-steps">Next steps</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../introduction/install.html">Install venv-patcher</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../introduction/install.html#requirements">Requirements</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../introduction/install.html#install-it-into-the-venv-you-want-to-patch">Install it into the venv you want to patch</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../introduction/install.html#check-the-install">Check the install</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../introduction/install.html#from-source">From source</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../introduction/install.html#next-steps">Next steps</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Quickstart</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../quickstart/05-minutes.html">venv-patcher in 5 minutes</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../quickstart/05-minutes.html#make-a-venv">1. Make a venv</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../quickstart/05-minutes.html#write-a-patch">2. Write a patch</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../quickstart/05-minutes.html#write-the-patches-file">3. Write the patches file</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../quickstart/05-minutes.html#apply-it">4. Apply it</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../quickstart/05-minutes.html#see-what-is-patched">5. See what is patched</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../quickstart/05-minutes.html#apply-again">6. Apply again</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../quickstart/05-minutes.html#undo-it">7. Undo it</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../quickstart/05-minutes.html#next-steps">Next steps</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../quickstart/everyday.html">Everyday tasks</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../quickstart/everyday.html#apply-your-patches">Apply your patches</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../quickstart/everyday.html#apply-the-patches-of-one-package">Apply the patches of one package</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../quickstart/everyday.html#see-what-is-patched">See what is patched</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../quickstart/everyday.html#undo-all-patches">Undo all patches</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../quickstart/everyday.html#undo-the-patches-of-one-package">Undo the patches of one package</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../quickstart/everyday.html#change-a-patch-and-apply-it-again">Change a patch and apply it again</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../quickstart/everyday.html#look-at-a-patched-package">Look at a patched package</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../quickstart/everyday.html#upgrade-a-patched-package">Upgrade a patched package</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Concepts</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="glossary.html">Glossary</a></li>
+<li class="toctree-l1"><a class="reference internal" href="how-it-works.html">How it works</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="how-it-works.html#the-picture">The picture</a></li>
+<li class="toctree-l2"><a class="reference internal" href="how-it-works.html#where-things-live">Where things live</a></li>
+<li class="toctree-l2"><a class="reference internal" href="how-it-works.html#apply">Apply</a></li>
+<li class="toctree-l2"><a class="reference internal" href="how-it-works.html#why-the-commits-are-always-the-same">Why the commits are always the same</a></li>
+<li class="toctree-l2"><a class="reference internal" href="how-it-works.html#list">List</a></li>
+<li class="toctree-l2"><a class="reference internal" href="how-it-works.html#reset">Reset</a></li>
+<li class="toctree-l2"><a class="reference internal" href="how-it-works.html#apply-with-force">Apply with <code class="docutils literal notranslate"><span class="pre">--force</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="how-it-works.html#a-package-s-life">A package’s life</a></li>
+<li class="toctree-l2"><a class="reference internal" href="how-it-works.html#what-it-does-not-do">What it does not do</a></li>
+</ul>
+</li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Compared to other ways</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#at-a-glance">At a glance</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#fork">Fork</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#monkey-patch">Monkey patch</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#vendoring">Vendoring</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#edit-by-hand">Edit by hand</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#when-venv-patcher-is-not-the-right-tool">When venv-patcher is not the right tool</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">venv-patcher command</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../cli/index.html">Overview and common options</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../cli/index.html#commands">Commands</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../cli/index.html#getting-help">Getting help</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../cli/index.html#options-for-all-commands">Options for all commands</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../cli/index.html#the-venv-it-works-on">The venv it works on</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../cli/index.html#output">Output</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../cli/index.html#exit-status">Exit status</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../cli/apply.html"><code class="docutils literal notranslate"><span class="pre">venv-patcher</span> <span class="pre">apply</span></code></a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../cli/apply.html#what-it-does">What it does</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../cli/apply.html#options">Options</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../cli/apply.html#examples">Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../cli/apply.html#running-it-again">Running it again</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../cli/apply.html#a-package-that-changed">A package that changed</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../cli/apply.html#a-package-that-is-not-installed">A package that is not installed</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../cli/apply.html#force"><code class="docutils literal notranslate"><span class="pre">--force</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="../cli/apply.html#when-a-patch-fails">When a patch fails</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../cli/apply.html#notes">Notes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../cli/apply.html#see-also">See also</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../cli/list.html"><code class="docutils literal notranslate"><span class="pre">venv-patcher</span> <span class="pre">list</span></code></a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../cli/list.html#what-it-does">What it does</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../cli/list.html#options">Options</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../cli/list.html#example">Example</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../cli/list.html#notes">Notes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../cli/list.html#see-also">See also</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../cli/reset.html"><code class="docutils literal notranslate"><span class="pre">venv-patcher</span> <span class="pre">reset</span></code></a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../cli/reset.html#what-it-does">What it does</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../cli/reset.html#options">Options</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../cli/reset.html#examples">Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../cli/reset.html#notes">Notes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../cli/reset.html#a-package-that-changed">A package that changed</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../cli/reset.html#see-also">See also</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Configuration</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../configuration/patches-file.html">The patches file</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../configuration/patches-file.html#yaml">YAML</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../configuration/patches-file.html#toml">TOML</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../configuration/patches-file.html#top-level">Top level</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../configuration/patches-file.html#fields-of-an-entry">Fields of an entry</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../configuration/patches-file.html#package"><code class="docutils literal notranslate"><span class="pre">package</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../configuration/patches-file.html#path"><code class="docutils literal notranslate"><span class="pre">path</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../configuration/patches-file.html#sha256sum"><code class="docutils literal notranslate"><span class="pre">sha256sum</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../configuration/patches-file.html#apply-command"><code class="docutils literal notranslate"><span class="pre">apply-command</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../configuration/patches-file.html#author"><code class="docutils literal notranslate"><span class="pre">author</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../configuration/patches-file.html#email"><code class="docutils literal notranslate"><span class="pre">email</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../configuration/patches-file.html#date"><code class="docutils literal notranslate"><span class="pre">date</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../configuration/patches-file.html#comments"><code class="docutils literal notranslate"><span class="pre">comments</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../configuration/patches-file.html#several-files">Several files</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../configuration/manifest.html">The manifest</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../configuration/manifest.html#example">Example</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../configuration/manifest.html#fields-of-a-package">Fields of a package</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../configuration/manifest.html#fields-of-a-patch-result">Fields of a patch result</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../configuration/manifest.html#how-it-is-used">How it is used</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Guides</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../guides/write-a-patch.html">Write a patch</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../guides/write-a-patch.html#copy-the-package">1. Copy the package</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../guides/write-a-patch.html#change-it">2. Change it</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../guides/write-a-patch.html#save-it">3. Save it</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../guides/write-a-patch.html#add-it-to-the-patches-file">4. Add it to the patches file</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../guides/write-a-patch.html#try-it">5. Try it</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../guides/write-a-patch.html#in-the-package-folder">In the package folder</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../guides/write-a-patch.html#a-plain-diff">A plain diff</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../guides/write-a-patch.html#many-patches-for-one-package">Many patches for one package</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../guides/write-a-patch.html#see-also">See also</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../guides/upstream-patch.html">Use a patch from upstream</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../guides/upstream-patch.html#the-problem-other-paths">The problem: other paths</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../guides/upstream-patch.html#get-the-patch">Get the patch</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../guides/upstream-patch.html#strip-the-front-of-the-paths">Strip the front of the paths</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../guides/upstream-patch.html#leave-out-other-files">Leave out other files</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../guides/upstream-patch.html#check-that-it-fits">Check that it fits</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../guides/pin-sha256.html">Pin a patch with sha256sum</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../guides/pin-sha256.html#pin-it">Pin it</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../guides/pin-sha256.html#when-the-file-changes">When the file changes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../guides/pin-sha256.html#when-to-pin">When to pin</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../guides/pin-sha256.html#without-a-pin">Without a pin</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../guides/iterate.html">Work on a patch</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../guides/iterate.html#the-loop">The loop</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../guides/iterate.html#edit-in-the-package-then-save-the-patch">Edit in the package, then save the patch</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../guides/iterate.html#when-it-is-done">When it is done</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../guides/many.html">Many packages and files</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../guides/many.html#one-file-many-packages">One file, many packages</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../guides/many.html#many-files">Many files</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../guides/many.html#only-some-packages">Only some packages</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../guides/many.html#a-package-that-is-not-always-installed">A package that is not always installed</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../guides/upgrade.html">Upgrade a patched package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../guides/upgrade.html#how-it-notices">How it notices</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../guides/upgrade.html#apply-the-patches-again">Apply the patches again</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../guides/upgrade.html#without-force">Without <code class="docutils literal notranslate"><span class="pre">--force</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="../guides/upgrade.html#reset">Reset</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../guides/upgrade.html#a-new-venv-works-too">A new venv works too</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../guides/upgrade.html#uninstall">Uninstall</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../guides/ci.html">Use it in CI</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../guides/ci.html#github-actions">GitHub Actions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../guides/ci.html#with-uv">With uv</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../guides/ci.html#git-is-needed">git is needed</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../guides/ci.html#fail-the-build-on-a-bad-patch">Fail the build on a bad patch</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../guides/ci.html#pin-your-patches">Pin your patches</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Architecture</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../architecture/index.html">Architecture</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../architecture/index.html#goals">Goals</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../architecture/index.html#how-a-command-runs">How a command runs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../architecture/index.html#modules">Modules</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../architecture/index.html#cli-py"><code class="docutils literal notranslate"><span class="pre">cli.py</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../architecture/index.html#core-py"><code class="docutils literal notranslate"><span class="pre">core.py</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../architecture/index.html#key-decisions">Key decisions</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../architecture/index.html#git-not-a-copy">git, not a copy</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../architecture/index.html#pinned-identity">Pinned identity</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../architecture/index.html#git-runs-without-maintenance">git runs without maintenance</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../architecture/index.html#the-manifest-lives-in-the-venv">The manifest lives in the venv</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../architecture/index.html#save-after-each-step">Save after each step</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../architecture/index.html#toml-only-on-python-3-11-or-newer">TOML only on Python 3.11 or newer</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../architecture/index.html#notice-changes-from-pip">Notice changes from pip</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../architecture/index.html#functions-of-the-right-size">Functions of the right size</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../architecture/index.html#git-calls">Git calls</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../architecture/diagrams.html">Git call diagrams</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../architecture/diagrams.html#apply">apply</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../architecture/diagrams.html#list">list</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../architecture/diagrams.html#reset">reset</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Contributing</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../contributing/development.html">Development</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../contributing/development.html#setup">Setup</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../contributing/development.html#making-changes">Making changes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../contributing/development.html#tests">Tests</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../contributing/development.html#checks">Checks</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../contributing/development.html#adding-a-command">Adding a command</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../contributing/development.html#commit-messages">Commit messages</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../contributing/development.html#reporting-bugs">Reporting bugs</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../contributing/documentation.html">Documentation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../contributing/documentation.html#build">Build</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../contributing/documentation.html#where-to-write-what">Where to write what</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../contributing/documentation.html#layout">Layout</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../contributing/documentation.html#writing-style">Writing style</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../contributing/documentation.html#markdown">Markdown</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../contributing/documentation.html#publishing">Publishing</a></li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">venv-patcher</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Compared to other ways</li>
+      <li class="wy-breadcrumbs-aside">
+              <a href="https://github.com/thorsten-klein/venv-patcher/blob/main/doc/concepts/comparison.md" class="fa fa-github"> Edit on GitHub</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="compared-to-other-ways">
+<h1>Compared to other ways<a class="headerlink" href="#compared-to-other-ways" title="Link to this heading"></a></h1>
+<p>There are other ways to change a package you depend on. This page compares
+them.</p>
+<section id="at-a-glance">
+<h2>At a glance<a class="headerlink" href="#at-a-glance" title="Link to this heading"></a></h2>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p></p></th>
+<th class="head"><p>venv-patcher</p></th>
+<th class="head"><p>fork</p></th>
+<th class="head"><p>monkey patch</p></th>
+<th class="head"><p>vendoring</p></th>
+<th class="head"><p>edit by hand</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Change is a normal patch file</p></td>
+<td><p>yes</p></td>
+<td><p>no, a repository</p></td>
+<td><p>no, code</p></td>
+<td><p>no, a copy</p></td>
+<td><p>no</p></td>
+</tr>
+<tr class="row-odd"><td><p>Works with the normal <code class="docutils literal notranslate"><span class="pre">pip</span> <span class="pre">install</span></code></p></td>
+<td><p>yes</p></td>
+<td><p>no, needs your fork</p></td>
+<td><p>yes</p></td>
+<td><p>no</p></td>
+<td><p>yes</p></td>
+</tr>
+<tr class="row-even"><td><p>Easy to see what is changed</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">list</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">git</span> <span class="pre">diff</span></code> upstream</p></td>
+<td><p>read the code</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">git</span> <span class="pre">diff</span></code></p></td>
+<td><p>no</p></td>
+</tr>
+<tr class="row-odd"><td><p>Easy to undo</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">reset</span></code></p></td>
+<td><p>reinstall</p></td>
+<td><p>remove code</p></td>
+<td><p>reinstall</p></td>
+<td><p>reinstall</p></td>
+</tr>
+<tr class="row-even"><td><p>Same result on every machine</p></td>
+<td><p>yes</p></td>
+<td><p>yes</p></td>
+<td><p>yes</p></td>
+<td><p>yes</p></td>
+<td><p>no</p></td>
+</tr>
+<tr class="row-odd"><td><p>Changes any file, not only Python code</p></td>
+<td><p>yes</p></td>
+<td><p>yes</p></td>
+<td><p>no</p></td>
+<td><p>yes</p></td>
+<td><p>yes</p></td>
+</tr>
+<tr class="row-even"><td><p>Work to keep it up to date</p></td>
+<td><p>rebase the patch</p></td>
+<td><p>rebase the fork</p></td>
+<td><p>check the code</p></td>
+<td><p>copy again</p></td>
+<td><p>do it again</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="fork">
+<h2>Fork<a class="headerlink" href="#fork" title="Link to this heading"></a></h2>
+<p>You copy the project, fix it, and install from your copy:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>git+https://github.com/you/requests@fix
+</pre></div>
+</div>
+<p>This is fine for big changes. For a small fix it is a lot: a repository to
+keep, releases to follow, and a new install source for everyone.</p>
+<p>With venv-patcher you keep only the patch file. The package still comes
+from PyPI.</p>
+</section>
+<section id="monkey-patch">
+<h2>Monkey patch<a class="headerlink" href="#monkey-patch" title="Link to this heading"></a></h2>
+<p>You replace a function at runtime:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">requests.utils</span>
+<span class="n">requests</span><span class="o">.</span><span class="n">utils</span><span class="o">.</span><span class="n">some_function</span> <span class="o">=</span> <span class="n">my_fixed_function</span>
+</pre></div>
+</div>
+<p>This needs no tools. But it only works for Python code, it runs on every
+import, and it breaks quietly when the package changes.</p>
+<p>venv-patcher changes the files once. A patch that no longer fits fails
+loudly.</p>
+</section>
+<section id="vendoring">
+<h2>Vendoring<a class="headerlink" href="#vendoring" title="Link to this heading"></a></h2>
+<p>You copy the package into your project. You own every line of it now, and
+you have to copy it again for each update.</p>
+</section>
+<section id="edit-by-hand">
+<h2>Edit by hand<a class="headerlink" href="#edit-by-hand" title="Link to this heading"></a></h2>
+<p>You change the files in site-packages. It is quick. But nobody can see it,
+and the next install or a new venv loses it.</p>
+<p>venv-patcher is this way, made safe: the change is a file in your project,
+it is recorded, and it can be undone.</p>
+</section>
+<section id="when-venv-patcher-is-not-the-right-tool">
+<h2>When venv-patcher is not the right tool<a class="headerlink" href="#when-venv-patcher-is-not-the-right-tool" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p>The change is large or long-lived. Send it upstream, or fork.</p></li>
+<li><p>You need the fix in a package you publish. Your users do not run
+venv-patcher.</p></li>
+<li><p>The package is a single <code class="docutils literal notranslate"><span class="pre">.py</span></code> file in site-packages, like <code class="docutils literal notranslate"><span class="pre">six</span></code>.
+venv-patcher only patches package folders.</p></li>
+</ul>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="how-it-works.html" class="btn btn-neutral float-left" title="How it works" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="../cli/index.html" class="btn btn-neutral float-right" title="Overview and common options" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright Thorsten Klein.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
