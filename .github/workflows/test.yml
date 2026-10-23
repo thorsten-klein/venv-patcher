@@ -3,6 +3,12 @@ name: Run Tests
 on:
   push:
     branches: [main]
+  # daily on main (scheduled runs always use the default branch), so a
+  # breaking change in a dependency, runner image or upstream download shows
+  # up even on a day without any commit
+  schedule:
+    - cron: '0 18 * * *'
+      timezone: Europe/Berlin
   pull_request:
     branches: ['*']
 
