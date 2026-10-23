@@ -11,6 +11,9 @@ on:
       timezone: Europe/Berlin
   pull_request:
     branches: ['*']
+  # by hand for any branch: 'Run workflow' in the Actions tab, or
+  # `gh workflow run test.yml --ref <branch>`
+  workflow_dispatch:
 
 jobs:
   lint:
