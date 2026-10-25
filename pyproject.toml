@@ -166,7 +166,17 @@ lint = "ruff check ."
 mypy = "mypy"
 pyright = "pyright"
 bandit = "bandit -c pyproject.toml -r venv_patcher"
-"pip-audit" = "pip-audit --skip-editable"
+# Audits only what ships: the locked runtime dependencies, no dependency
+# groups. A CVE in a dev tool (e.g. filelock via pre-commit, whose fix needed a
+# newer Python than we support) must not fail the build. Markers in the export
+# are evaluated for the running Python, so each CI version audits its own set.
+"pip-audit" = {shell = """
+set -e
+req="$(mktemp)"
+trap 'rm -f "$req"' EXIT
+uv export --frozen --no-emit-project --no-default-groups --quiet --output-file "$req" > /dev/null
+pip-audit --disable-pip --requirement "$req"
+"""}
 complexity = "complexipy"
 test = {cmd = "pytest -v -n=auto -W error --cov-config=pyproject.toml --cov=venv_patcher --junitxml=junit.xml -o junit_family=legacy --cov-report=term-missing --cov-report=html --cov-report=xml", env = {PYTHONIOENCODING = "utf-8"}}
 # The docs site, built twice: HTML for people, Markdown for AI tools. The
